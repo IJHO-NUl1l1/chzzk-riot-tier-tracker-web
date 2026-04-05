@@ -31,7 +31,7 @@ export default function RootLayout({
       lang="ko"
       className={`${notoSansKR.variable} ${rajdhani.variable} dark h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col select-none">{children}</body>
     </html>
   );
 }

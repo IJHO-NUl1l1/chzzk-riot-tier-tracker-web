@@ -1,100 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
+import { TIERS, FEATURES, STEPS, TECH } from "@/lib/data";
+import MockChat from "@/components/MockChat";
 
-/* ── 티어 데이터 ── */
-const TIERS = [
-  { name: "Challenger", color: "#f4c873", short: "CHA" },
-  { name: "Grandmaster", color: "#ef4444", short: "GM" },
-  { name: "Master", color: "#9d4dc3", short: "MST" },
-  { name: "Diamond", color: "#576ace", short: "DIA" },
-  { name: "Emerald", color: "#3eb489", short: "EMR" },
-  { name: "Platinum", color: "#4fccc6", short: "PLA" },
-  { name: "Gold", color: "#f1a64d", short: "GLD" },
-  { name: "Silver", color: "#7e8183", short: "SLV" },
-  { name: "Bronze", color: "#b97451", short: "BRZ" },
-  { name: "Iron", color: "#72767d", short: "IRN" },
-];
-
-/* ── Mock 채팅 데이터 ── */
-const MOCK_CHAT = [
-  { nick: "T1Faker", msg: "오늘 KDA 어떻게 됨?", tier: "Challenger", tierColor: "#f4c873", game: "LoL", rank: "CHA" },
-  { nick: "Hide_on_bush", msg: "ㄹㅇ 이번 패치 너프 심하다", tier: "Grandmaster", tierColor: "#ef4444", game: "LoL", rank: "GM" },
-  { nick: "ProGamer_KR", msg: "TFT 오버레이 어케 켜요", tier: "Master", tierColor: "#9d4dc3", game: "TFT", rank: "MST" },
-  { nick: "viewer123", msg: "배지 어떻게 달아요??", tier: null, tierColor: null, game: null, rank: null },
-];
-
-/* ── 피처 ── */
-const FEATURES = [
-  {
-    icon: "💬",
-    title: "실시간 채팅 배지",
-    desc: "치지직 채팅창 닉네임 옆에 LoL · TFT 티어 배지가 자동 삽입됩니다. 별도 설정 없이 Extension 설치만으로 동작합니다.",
-    accent: "#818cf8",
-  },
-  {
-    icon: "📺",
-    title: "OBS 오버레이",
-    desc: "스트리머는 자신의 티어를 OBS Browser Source URL 하나로 방송 화면에 바로 표시할 수 있습니다.",
-    accent: "#34d399",
-  },
-  {
-    icon: "⚡",
-    title: "Supabase Realtime",
-    desc: "티어 변경 시 WebSocket broadcast로 같은 방송을 시청 중인 모든 시청자 화면에 즉시 반영됩니다.",
-    accent: "#60a5fa",
-  },
-  {
-    icon: "🔒",
-    title: "안전한 API 프록시",
-    desc: "Riot API 키는 Fastify 서버에서만 관리됩니다. 클라이언트에 API 키가 노출되지 않습니다.",
-    accent: "#f1a64d",
-  },
-];
-
-/* ── 단계 ── */
-const STEPS = [
-  { num: "01", title: "Extension 설치", desc: "Chrome 웹 스토어에서 Chzzk Riot Tier Tracker를 설치합니다." },
-  { num: "02", title: "계정 연동", desc: "팝업에서 치지직 로그인 후 Riot 닉네임을 등록하면 자동으로 DB에 저장됩니다." },
-  { num: "03", title: "배지 확인", desc: "치지직 방송 입장 시 채팅창에서 티어 배지가 자동으로 표시됩니다." },
-];
-
-/* ── 기술 스택 (shields.io badge URLs) ── */
-const TECH = [
-  {
-    label: "Extension",
-    badges: [
-      { label: "Chrome Extension", color: "4285F4", logo: "googlechrome" },
-      { label: "JavaScript", color: "F7DF1E", logo: "javascript", logoColor: "000" },
-      { label: "Supabase Realtime", color: "3ECF8E", logo: "supabase", logoColor: "000" },
-    ],
-  },
-  {
-    label: "Frontend",
-    badges: [
-      { label: "Next.js", color: "000000", logo: "nextdotjs" },
-      { label: "TypeScript", color: "3178C6", logo: "typescript" },
-      { label: "Tailwind CSS", color: "06B6D4", logo: "tailwindcss", logoColor: "000" },
-    ],
-  },
-  {
-    label: "Backend",
-    badges: [
-      { label: "Fastify", color: "000000", logo: "fastify" },
-      { label: "Railway", color: "0B0D0E", logo: "railway" },
-      { label: "Node.js", color: "339933", logo: "nodedotjs" },
-    ],
-  },
-  {
-    label: "Database",
-    badges: [
-      { label: "Supabase", color: "3ECF8E", logo: "supabase", logoColor: "000" },
-      { label: "PostgreSQL", color: "316192", logo: "postgresql" },
-    ],
-  },
-];
+const NICK_COLORS = ["#5ac97d", "#a78bfa", "#60a5fa", "#f472b6", "#34d399", "#fb923c"];
 
 export default function Home() {
+  const randNum   = Math.floor(Math.random() * 9000 + 1000);
+  const randColor = NICK_COLORS[Math.floor(Math.random() * NICK_COLORS.length)];
+  const randTier  = TIERS[Math.floor(Math.random() * TIERS.length)].name;
   return (
     <div className="flex flex-col min-h-screen" style={{ background: "#0a0a0f", color: "#e4e4e7" }}>
 
@@ -107,7 +22,7 @@ export default function Home() {
           </span>
           <nav className="flex items-center gap-6 text-sm" style={{ color: "#71717a" }}>
             <Link href="/demo" className="hover:text-white transition-colors">Demo</Link>
-            <Link href="https://github.com" target="_blank" className="hover:text-white transition-colors">GitHub</Link>
+            <Link href="https://github.com/IJHO-NUl1l1/chzzk-riot-tier-tracker" target="_blank" className="hover:text-white transition-colors">GitHub</Link>
           </nav>
         </div>
       </header>
@@ -146,43 +61,7 @@ export default function Home() {
             </div>
 
             {/* Mock Chat Preview */}
-            <div className="w-full mx-auto max-w-lg card-glow p-1 rounded-2xl"
-              style={{ boxShadow: "0 0 60px rgba(99,102,241,0.15), 0 20px 60px rgba(0,0,0,0.5)" }}>
-              <div className="flex items-center gap-2 px-4 py-2.5 border-b rounded-t-xl"
-                style={{ borderColor: "rgba(255,255,255,0.06)", background: "#0f0f18" }}>
-                <div className="flex gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#ef4444] opacity-70" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#f1a64d] opacity-70" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#34d399] opacity-70" />
-                </div>
-                <span className="text-xs mx-auto" style={{ color: "#52525b" }}>치지직 채팅창</span>
-              </div>
-              <div className="px-4 py-3 space-y-2.5 rounded-b-xl" style={{ background: "#0d0d16" }}>
-                {MOCK_CHAT.map((msg, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm">
-                    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold"
-                      style={{ background: msg.tierColor ? `${msg.tierColor}22` : "rgba(255,255,255,0.05)", color: msg.tierColor ?? "#52525b" }}>
-                      {msg.nick[0]}
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {msg.tier && (
-                        <span className="tier-badge"
-                          style={{
-                            background: `${msg.tierColor}18`,
-                            color: msg.tierColor!,
-                            border: `1px solid ${msg.tierColor}40`,
-                            boxShadow: `0 0 8px ${msg.tierColor}30`,
-                          }}>
-                          {msg.game} {msg.rank}
-                        </span>
-                      )}
-                      <span className="font-semibold text-xs" style={{ color: msg.tierColor ?? "#71717a" }}>{msg.nick}</span>
-                      <span style={{ color: "#a1a1aa" }}>{msg.msg}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <MockChat nick={`user#${randNum}`} nickColor={randColor} tier={randTier} />
 
             {/* Tier emblem strip — scattered + interactive */}
             {(() => {
@@ -201,14 +80,13 @@ export default function Home() {
                           alt={tier.name}
                           width={sizes[i]}
                           height={sizes[i]}
-                          className="transition-all duration-300 group-hover:scale-[1.35] group-hover:-translate-y-1"
+                          className="transition-all duration-300 group-hover:-translate-y-1"
                           style={{
-                            filter: `drop-shadow(0 0 8px ${tier.color}60)`,
+                            filter: `drop-shadow(0 0 8px ${tier.color}CC)`,
                             animation: `float ${3.5 + delays[i]}s ease-in-out ${delays[i]}s infinite`,
                           }}
                         />
-                        {/* Glow just below the image */}
-                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[3px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-[3px]"
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[3px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-[4px]"
                           style={{ background: tier.color }} />
                       </div>
                     </div>
@@ -288,13 +166,14 @@ export default function Home() {
                   <div className="flex flex-wrap gap-2">
                     {t.badges.map((b) => {
                       const logoColor = b.logoColor ?? "white";
-                      const url = `https://img.shields.io/badge/${encodeURIComponent(b.label)}-${b.color}?style=flat-square&logo=${b.logo}&logoColor=${logoColor}`;
+                      const url = `https://img.shields.io/badge/${encodeURIComponent(b.label)}-${b.color}?style=flat&logo=${b.logo}&logoColor=${logoColor}&labelColor=18181f`;
                       return (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img
                           key={b.label}
                           src={url}
                           alt={b.label}
+                          style={{ display: "block" }}
                           className="transition-all duration-200 hover:scale-105 hover:brightness-125"
                         />
                       );
