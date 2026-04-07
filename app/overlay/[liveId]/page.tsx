@@ -58,13 +58,23 @@ export default function OverlayPage() {
     channel
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState<{ chzzkChannelName: string }>();
+        console.log("[Overlay] presence sync, state:", state);
         const names = Object.values(state)
           .flat()
           .map((p) => p.chzzkChannelName)
           .filter(Boolean);
+        console.log("[Overlay] names:", names);
         fetchViewers(names);
       })
-      .subscribe();
+      .on("presence", { event: "join" }, ({ key, newPresences }) => {
+        console.log("[Overlay] presence join:", key, newPresences);
+      })
+      .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
+        console.log("[Overlay] presence leave:", key, leftPresences);
+      })
+      .subscribe((status) => {
+        console.log("[Overlay] channel status:", status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
