@@ -63,7 +63,7 @@ export default function Home() {
             </div>
 
             {/* Mock Chat Preview */}
-            <MockChat nick={`user#${randNum}`} nickColor={randColor} tier={randTier} />
+            <MockChat nick={`user#${randNum}`} nickColor={randColor} tiers={[randTier]} />
 
             {/* Tier emblem strip — scattered + interactive */}
             {(() => {
