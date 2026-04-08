@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import MockExtensionPopup from "@/components/demo/MockExtensionPopup";
-import MockChat from "@/components/MockChat";
-import type { ChzzkState, RiotState, HighlightTarget } from "@/components/demo/MockExtensionPopup";
+import MockExtensionPopup from "@/components/MockExtensionPopup";
+import MockChat, { type TierBadgeInfo } from "@/components/MockChat";
+import type { ChzzkState, RiotState, HighlightTarget } from "@/components/MockExtensionPopup";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -95,10 +95,14 @@ export default function DemoPage() {
   ];
 
   // Chat tiers: only publicly registered games
-  const chatTiers: string[] = [
-    lolRegistered && lolPublic && lolData ? toTierCase(lolData.tier) : null,
-    tftRegistered && tftPublic && tftData ? toTierCase(tftData.tier) : null,
-  ].filter(Boolean) as string[];
+  const chatTiers: TierBadgeInfo[] = [
+    lolRegistered && lolPublic && lolData
+      ? { tier: toTierCase(lolData.tier), rank: lolData.rank, gameType: "lol" as const, lp: lolData.lp, riotName: `${lolData.gameName}#KR1` }
+      : null,
+    tftRegistered && tftPublic && tftData
+      ? { tier: toTierCase(tftData.tier), rank: tftData.rank, gameType: "tft" as const, lp: tftData.lp, riotName: `${tftData.gameName}#KR1` }
+      : null,
+  ].filter(Boolean) as TierBadgeInfo[];
 
   const showChat = visibleStepIdx >= 3 && anyRegistered;
 
@@ -269,12 +273,12 @@ export default function DemoPage() {
         })}
       </div>
 
-      {/* ── Left: scrollable step text (42%) ── */}
+      {/* ── Left: scrollable step text (28%) ── */}
       <div
         ref={scrollRef}
         style={{
           position: "absolute", left: 0, top: 0,
-          width: "42%", height: "100vh",
+          width: "28%", height: "100vh",
           overflowY: "scroll", scrollbarWidth: "none",
         }}
       >
@@ -294,7 +298,7 @@ export default function DemoPage() {
                 style={{
                   height: vh,
                   display: "flex", flexDirection: "column", justifyContent: "center",
-                  paddingLeft: 72, paddingRight: 40,
+                  paddingLeft: 68, paddingRight: 24,
                   opacity: isActive ? 1 : 0.25,
                   transition: "opacity 600ms ease",
                 }}
@@ -368,18 +372,20 @@ export default function DemoPage() {
         </div>
       </div>
 
-      {/* ── Right: fixed demo panel (58%) ── */}
+      {/* ── Right: fixed demo panel (72%) ── */}
       <div style={{
-        position: "fixed", left: "42%", right: 0, top: 0,
+        position: "fixed", left: "28%", right: 0, top: 0,
         height: "100vh",
         display: "flex", alignItems: "center", justifyContent: "center",
-        gap: 20, padding: "0 40px", overflow: "hidden",
+        gap: 32, padding: "0 48px", overflow: "hidden",
       }}>
-        {/* Popup: nudges left when chat appears */}
+        {/* Popup: nudges left when chat appears; scaled up */}
         <div style={{
           flexShrink: 0,
           transition: "transform 650ms cubic-bezier(0.16,1,0.3,1)",
-          transform: showChat ? "translateX(-12px) scale(0.92)" : "translateX(0) scale(1)",
+          transform: showChat
+            ? "translateX(-16px) scale(1.05)"
+            : "translateX(0) scale(1.15)",
           transformOrigin: "center right",
         }}>
           {popup}
@@ -387,9 +393,9 @@ export default function DemoPage() {
 
         {/* Chat: slides in from right when step 4 reached */}
         <div style={{
-          flexShrink: 0, width: 340,
+          flexShrink: 0, width: 360,
           opacity: showChat ? 1 : 0,
-          transform: showChat ? "translateX(0)" : "translateX(40px)",
+          transform: showChat ? "translateX(0)" : "translateX(20px)",
           transition: "opacity 550ms ease, transform 650ms cubic-bezier(0.16,1,0.3,1)",
           pointerEvents: showChat ? "auto" : "none",
         }}>
