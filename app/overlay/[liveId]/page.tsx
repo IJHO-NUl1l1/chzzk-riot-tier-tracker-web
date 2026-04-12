@@ -12,6 +12,7 @@ interface TierEntry {
   game_type: string;
   tier: string;
   rank: string | null;
+  is_public?: boolean;
 }
 
 interface Viewer {
@@ -71,6 +72,76 @@ export default function OverlayPage() {
       })
       .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
         console.log("[Overlay] presence leave:", key, leftPresences);
+      })
+      .on("broadcast", { event: "tier_updated" }, ({ payload }) => {
+        const { chzzkChannelName, gameType, tier, rank, isPublic } = payload as {
+          chzzkChannelName: string;
+          gameType: string;
+          tier: string | null;
+          rank: string | null;
+          isPublic: boolean;
+        };
+        if (!chzzkChannelName) return;
+
+        setViewers((prev) => {
+          const existing = prev.find((v) => v.chzzkChannelName === chzzkChannelName);
+          if (!existing) return prev; // not in presence — ignore
+
+          const updatedEntries = existing.entries.filter((e) => e.game_type !== gameType);
+          if (isPublic !== false && tier) {
+            updatedEntries.push({ game_type: gameType, tier, rank: rank ?? null });
+          }
+
+          if (updatedEntries.length === 0) {
+            return prev.filter((v) => v.chzzkChannelName !== chzzkChannelName);
+          }
+          return prev.map((v) =>
+            v.chzzkChannelName === chzzkChannelName ? { ...v, entries: updatedEntries } : v
+          );
+        });
+      })
+      .on("broadcast", { event: "tier_deleted" }, ({ payload }) => {
+        const { chzzkChannelName, gameType } = payload as {
+          chzzkChannelName: string;
+          gameType: string | null;
+        };
+        if (!chzzkChannelName) return;
+
+        setViewers((prev) =>
+          prev
+            .map((v) => {
+              if (v.chzzkChannelName !== chzzkChannelName) return v;
+              return {
+                ...v,
+                entries: gameType
+                  ? v.entries.filter((e) => e.game_type !== gameType)
+                  : [],
+              };
+            })
+            .filter((v) => v.entries.length > 0)
+        );
+      })
+      .on("broadcast", { event: "privacy_changed" }, ({ payload }) => {
+        const { chzzkChannelName, gameType, isPublic } = payload as {
+          chzzkChannelName: string;
+          gameType: string | null;
+          isPublic: boolean;
+        };
+        if (!chzzkChannelName) return;
+
+        setViewers((prev) =>
+          prev
+            .map((v) => {
+              if (v.chzzkChannelName !== chzzkChannelName) return v;
+              const updatedEntries = v.entries
+                .map((e) =>
+                  !gameType || e.game_type === gameType ? { ...e, is_public: isPublic } : e
+                )
+                .filter((e) => e.is_public !== false);
+              return { ...v, entries: updatedEntries };
+            })
+            .filter((v) => v.entries.length > 0)
+        );
       })
       .subscribe((status) => {
         console.log("[Overlay] channel status:", status);
