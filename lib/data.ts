@@ -22,12 +22,12 @@ export interface TierBadgeInfo {
 }
 
 export const MOCK_CHAT = [
-  { nick: "user#1847", nickColor: "#5ac97d", msg: "오늘 경기 너무 재밌다ㅋㅋ",          tiers: [{ tier: "Challenger", rank: null, gameType: "lol" as GameType, lp: 1284 }] },
-  { nick: "user#3021", nickColor: "#a78bfa", msg: "이번 패치 원딜 너프 심하지 않나요",  tiers: [{ tier: "Diamond",    rank: "II", gameType: "lol" as GameType, lp: 67   }] },
-  { nick: "user#0293", nickColor: "#60a5fa", msg: "TFT 오버레이 어케 켜요?",            tiers: [{ tier: "Master",     rank: null, gameType: "tft" as GameType, lp: 312  }] },
-  { nick: "user#5512", nickColor: "#f472b6", msg: "배지 어떻게 달아요 저도 달고싶은데", tiers: [] },
-  { nick: "user#7734", nickColor: "#34d399", msg: "ㄹㅇ 익스텐션 설치하면 바로 됨",    tiers: [{ tier: "Gold",       rank: "IV", gameType: "lol" as GameType, lp: 43   }] },
-  { nick: "user#1102", nickColor: "#fb923c", msg: "와 배지 생겼다 ㄷㄷ",               tiers: [{ tier: "Platinum",   rank: "I",  gameType: "tft" as GameType, lp: 88   }] },
+  { nick: "user#1847", nickColor: "#5ac97d", msg: "오늘 경기 재밌네요",                  tiers: [{ tier: "Challenger", rank: null, gameType: "lol" as GameType, lp: 1284 }] },
+  { nick: "user#3021", nickColor: "#a78bfa", msg: "이번 패치 원딜 너프가 좀 심한 것 같아요", tiers: [{ tier: "Diamond",    rank: "II", gameType: "lol" as GameType, lp: 67   }] },
+  { nick: "user#0293", nickColor: "#60a5fa", msg: "TFT 오버레이는 어떻게 켜나요?",      tiers: [{ tier: "Master",     rank: null, gameType: "tft" as GameType, lp: 312  }] },
+  { nick: "user#5512", nickColor: "#f472b6", msg: "배지 어떻게 달 수 있나요?",           tiers: [] },
+  { nick: "user#7734", nickColor: "#34d399", msg: "Extension 설치하면 바로 됩니다",      tiers: [{ tier: "Gold",       rank: "IV", gameType: "lol" as GameType, lp: 43   }] },
+  { nick: "user#1102", nickColor: "#fb923c", msg: "배지 생겼다 신기하네요",              tiers: [{ tier: "Platinum",   rank: "I",  gameType: "tft" as GameType, lp: 88   }] },
 ];
 
 export const FEATURES = [
