@@ -180,32 +180,44 @@ function TierCol({
         }}>
           {game}
         </span>
-        {isRegistered && (
-          <label style={{ position: "relative", display: "inline-block", width: 26, height: 14, flexShrink: 0, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={isPublic !== false}
-              onChange={(e) => onToggle?.(e.target.checked)}
-              style={{ opacity: 0, width: 0, height: 0, position: "absolute" }}
-            />
-            <span style={{
-              position: "absolute", cursor: "pointer", top: 0, left: 0, right: 0, bottom: 0,
-              background: isPublic !== false ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "#52525b",
-              borderRadius: 14,
-              transition: "all 250ms ease",
-            }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {isRegistered && (
+            <svg
+              width="13" height="13" viewBox="0 0 24 24" fill="none"
+              stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ opacity: 0.5, cursor: "pointer", flexShrink: 0 }}
+            >
+              <path d="M23 4v6h-6" /><path d="M1 20v-6h6" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          )}
+          {isRegistered && (
+            <label style={{ position: "relative", display: "inline-block", width: 26, height: 14, flexShrink: 0, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={isPublic !== false}
+                onChange={(e) => onToggle?.(e.target.checked)}
+                style={{ opacity: 0, width: 0, height: 0, position: "absolute" }}
+              />
               <span style={{
-                position: "absolute",
-                height: 10, width: 10,
-                left: isPublic !== false ? 14 : 2,
-                bottom: 2,
-                background: "#fff",
-                borderRadius: "50%",
+                position: "absolute", cursor: "pointer", top: 0, left: 0, right: 0, bottom: 0,
+                background: isPublic !== false ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "#52525b",
+                borderRadius: 14,
                 transition: "all 250ms ease",
-              }} />
-            </span>
-          </label>
-        )}
+              }}>
+                <span style={{
+                  position: "absolute",
+                  height: 10, width: 10,
+                  left: isPublic !== false ? 14 : 2,
+                  bottom: 2,
+                  background: "#fff",
+                  borderRadius: "50%",
+                  transition: "all 250ms ease",
+                }} />
+              </span>
+            </label>
+          )}
+        </div>
       </div>
 
       {/* tier image */}
@@ -237,7 +249,7 @@ function TierCol({
           fontFamily: "Rajdhani, sans-serif", fontSize: 10, fontWeight: 700,
           letterSpacing: "0.04em", textTransform: "uppercase",
           color: "#fff", background: color,
-          padding: "2px 8px", borderRadius: 3, marginTop: 2, marginBottom:5
+          padding: "2px 8px", borderRadius: 3, marginTop: 2,
         }}>
           {data.tier} {data.rank ?? ""}
         </span>
@@ -248,6 +260,17 @@ function TierCol({
           color: "#fff", background: "#444",
           padding: "2px 8px", borderRadius: 3, marginTop: 2,
         }}>-</span>
+      )}
+
+      {/* LP */}
+      {isRegistered && data && (
+        <span style={{
+          fontFamily: "Rajdhani, sans-serif", fontSize: 14, fontWeight: 600,
+          letterSpacing: "0.02em", marginBottom: 2,
+        }}>
+          <span style={{ color: "#a5b4fc" }}>{data.lp}</span>
+          <span style={{ color: "#52525b", fontSize: 11, marginLeft: 2 }}>LP</span>
+        </span>
       )}
 
       {/* action button */}

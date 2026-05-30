@@ -31,6 +31,19 @@ const TIER_COLORS: Record<string, string> = {
   MASTER: "#9d4dc3", GRANDMASTER: "#ef4444", CHALLENGER: "#f4c873",
 };
 
+const TIER_GRADIENTS: Record<string, [string, string]> = {
+  CHALLENGER:  ["#f4c873", "#ffffff"],
+  GRANDMASTER: ["#ef4444", "#f97316"],
+  MASTER:      ["#9d4dc3", "#ec4899"],
+  DIAMOND:     ["#60a5fa", "#a5f3fc"],
+  EMERALD:     ["#10b981", "#0ac3a6"],
+  PLATINUM:    ["#00b4d8", "#90e0ef"],
+  GOLD:        ["#c89b3c", "#f4c873"],
+  SILVER:      ["#6b7280", "#d1d5db"],
+  BRONZE:      ["#a16207", "#d97706"],
+  IRON:        ["#4b5563", "#9ca3af"],
+};
+
 function toTierImageName(t: string) {
   return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
 }
@@ -104,33 +117,35 @@ interface TooltipState {
 }
 
 function Tooltip({ state }: { state: TooltipState }) {
-  const { info, nick, x, y } = state;
-  const tierUpper  = info.tier.toUpperCase();
-  const tierColor  = TIER_COLORS[tierUpper] || "#e4e4e7";
-  const imgName    = toTierImageName(info.tier);
-  const gameLabel  = info.gameType === "lol" ? "LoL" : "TFT";
-  const tierLabel  = info.rank ? `${tierUpper} ${info.rank}` : tierUpper;
+  const { info, x, y } = state;
+  const tierUpper = info.tier.toUpperCase();
+  const tierColor = TIER_COLORS[tierUpper] || "#e4e4e7";
+  const [gradFrom, gradTo] = TIER_GRADIENTS[tierUpper] ?? [tierColor, "#ffffff"];
+  const imgName   = toTierImageName(info.tier);
+  const tierLabel = info.rank ? `${tierUpper} ${info.rank}` : tierUpper;
 
-  const lpHtml = info.lp != null
-    ? `${info.lp} LP`
-    : null;
-
-  const left = Math.min(x, typeof window !== "undefined" ? window.innerWidth - 256 - 8 : x);
+  const left = Math.min(x, typeof window !== "undefined" ? window.innerWidth - 210 - 8 : x);
+  let top = y;
+  if (typeof window !== "undefined" && top + 85 > window.innerHeight) {
+    top = y - 85 - 12;
+  }
 
   return (
     <div
       style={{
         position: "fixed",
         left,
-        top: y,
+        top,
         zIndex: 99999,
+        display: "flex",
+        alignItems: "stretch",
+        width: 210,
+        height: 85,
         background: "linear-gradient(155deg, #0f0f1c 0%, #09090f 100%)",
         border: `1px solid rgba(129,140,248,0.22)`,
-        borderLeft: `3px solid ${tierColor}55`,
+        borderLeft: `3px solid ${tierColor}88`,
         borderRadius: 12,
-        padding: "12px 14px 11px 12px",
-        minWidth: 192,
-        maxWidth: 256,
+        padding: "11px 12px 11px 11px",
         boxShadow: "0 12px 40px rgba(0,0,0,0.75), 0 0 0 1px rgba(129,140,248,0.06), 0 0 28px rgba(99,102,241,0.12)",
         pointerEvents: "none",
         fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif",
@@ -145,58 +160,68 @@ function Tooltip({ state }: { state: TooltipState }) {
         background: "linear-gradient(90deg, transparent, rgba(129,140,248,0.5), transparent)",
       }} />
 
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+      {/* Left: emblem */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", paddingRight: 11, flexShrink: 0 }}>
         <Image
           src={`/images/RankedEmblemsLatest/Rank=${imgName}.png`}
           alt={imgName}
-          width={42}
-          height={42}
-          style={{ flexShrink: 0, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.6))" }}
+          width={47}
+          height={47}
+          style={{ flexShrink: 0, filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))" }}
         />
-        <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1 }}>
-          {/* Game label pill */}
+      </div>
+
+      {/* Right: info */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", flex: 1, minWidth: 0, gap: 12 }}>
+        {/* Top group: game pill + tier text */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {/* Game pill with icon */}
           <div style={{
-            display: "inline-flex", alignItems: "center", width: "fit-content",
-            padding: "1px 7px", borderRadius: 999,
-            fontSize: 9, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase",
+            display: "inline-flex", alignItems: "center", gap: 2,
+            width: "fit-content",
+            padding: "1px 3px 1px 2px", borderRadius: 999,
+            fontSize: 7, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase",
             ...(info.gameType === "lol"
               ? { background: "rgba(99,102,241,0.18)", border: "1px solid rgba(129,140,248,0.35)", color: "#a5b4fc" }
               : { background: "rgba(52,211,153,0.14)", border: "1px solid rgba(52,211,153,0.3)",   color: "#6ee7b7" }
             ),
           }}>
-            {gameLabel}
+            {/* SVG icon inline */}
+            {info.gameType === "lol" ? (
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
+              </svg>
+            ) : (
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+            )}
+            <span>{info.gameType === "lol" ? "LOL" : "TFT"}</span>
           </div>
-          {/* Tier name */}
+          {/* Tier text with gradient */}
           <div style={{
-            fontSize: 13, fontWeight: 700, lineHeight: 1.2, letterSpacing: "0.02em",
-            color: tierColor,
-            textShadow: `0 0 12px ${tierColor}55`,
+            fontSize: 15, fontWeight: 700, lineHeight: 1.2, letterSpacing: 0,
+            textTransform: "uppercase", whiteSpace: "nowrap",
           }}>
-            {tierLabel}
+            <span style={{
+              display: "inline-block",
+              WebkitTextFillColor: "transparent",
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              backgroundImage: `linear-gradient(135deg, ${gradFrom} 0%, ${gradTo} 100%)`,
+            }}>
+              {tierLabel}
+            </span>
           </div>
         </div>
-      </div>
 
-      {/* LP */}
-      {lpHtml && (
-        <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: "#a1a1aa", letterSpacing: "0.02em" }}>
-          {info.lp}{" "}
-          <span style={{ fontWeight: 500, color: "#52525b", fontSize: 10 }}>LP</span>
-        </div>
-      )}
-
-      {/* Nick */}
-      <div style={{
-        margin: "8px 0 0",
-        height: 1,
-        background: "linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.05) 100%)",
-      }} />
-      <div style={{
-        marginTop: 6, fontSize: 11, color: "#52525b",
-        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-      }}>
-        {nick}
+        {/* Bottom group: LP */}
+        {info.lp != null && (
+          <div style={{ fontFamily: "Rajdhani, sans-serif", fontSize: 13, fontWeight: 600, color: "#e4e4e7", letterSpacing: "0.01em" }}>
+            <span style={{ color: "#a5b4fc" }}>{info.lp}</span>
+            <span style={{ color: "#52525b", fontSize: 9, marginLeft: 2 }}>LP</span>
+          </div>
+        )}
       </div>
     </div>
   );
