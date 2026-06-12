@@ -58,7 +58,7 @@ export default function Home() {
 
             {/* CTAs */}
             <div className="flex flex-wrap gap-3 justify-center">
-              <Link href="#" className="btn-primary">Chrome Extension 설치하기</Link>
+              <a href="https://chromewebstore.google.com/detail/chzzk-riot-tier-tracker/nblnplkaaiadgbagcmolcfbodpjfekgd" target="_blank" rel="noopener noreferrer" className="btn-primary">Chrome Extension 설치하기</a>
               <Link href="/demo" className="btn-ghost">웹 데모 체험하기</Link>
             </div>
 
