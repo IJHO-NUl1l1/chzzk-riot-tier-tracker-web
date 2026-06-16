@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import MockExtensionPopup from "@/components/MockExtensionPopup";
 import MockChat, { type TierBadgeInfo } from "@/components/MockChat";
 import type { ChzzkState, RiotState, HighlightTarget } from "@/components/MockExtensionPopup";
+import BadgeList from "@/components/overlay/BadgeList";
+import TierStats from "@/components/overlay/TierStats";
+import { MOCK_OVERLAY_VIEWERS } from "@/components/overlay/mockOverlayViewers";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -51,9 +54,12 @@ const toTierCase = (t: string) => t.charAt(0).toUpperCase() + t.slice(1).toLower
 // ── Main ───────────────────────────────────────────────────────────────────
 
 export default function DemoPage() {
-  const scrollRef = useRef<HTMLDivElement>(null);
   const [vh, setVh] = useState(800);
   const [scrollY, setScrollY] = useState(0);
+  // 휠 스크롤로 단계를 넘길 때만 부드럽게 트랜지션을 켠다(클릭/등록 후 자동
+  // 이동도 동일). 휠을 계속 굴릴 때는 트랜지션 없이 즉각 반응해야 스크롤
+  // 느낌이 자연스럽다.
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Auth states
   const [chzzkState, setChzzkState] = useState<ChzzkState>("disconnected");
@@ -104,7 +110,11 @@ export default function DemoPage() {
       : null,
   ].filter(Boolean) as TierBadgeInfo[];
 
-  const showChat = visibleStepIdx >= 3 && anyRegistered;
+  // 채팅 미리보기는 04 단계에서만, 05(OBS 오버레이) 단계에 들어가면 사라지고
+  // 오버레이 미리보기로 교체된다(같은 슬롯에서 크로스페이드).
+  const showChat = visibleStepIdx === 3 && anyRegistered;
+  const showOverlay = visibleStepIdx >= 4;
+  const showPopup = visibleStepIdx < 4;
 
   // ── Viewport & scroll ────────────────────────────────────────────────────
 
@@ -116,31 +126,93 @@ export default function DemoPage() {
   }, []);
 
   const scrollToStep = useCallback((idx: number) => {
-    scrollRef.current?.scrollTo({ top: idx * vh, behavior: "smooth" });
+    setIsAnimating(true);
+    setScrollY(idx * vh);
+    setTimeout(() => setIsAnimating(false), 650);
   }, [vh]);
 
-  const handleScroll = useCallback(() => {
-    setScrollY(scrollRef.current?.scrollTop ?? 0);
-  }, []);
+  // wheel accumulator for step snapping
+  const wheelAccRef = useRef(0);
+  const wheelTimeoutRef = useRef<number | null>(null);
 
+  // 휠 이벤트를 window에 직접 붙여서, 화면 어디(왼쪽 텍스트든 오른쪽
+  // 데모 패널이든)에서 스크롤하든 동일하게 단계가 넘어가게 한다. 예전엔
+  // 왼쪽 28% 영역에만 실제 스크롤 컨테이너가 있어서 그 좁은 범위 밖에서는
+  // 휠이 먹지 않았다.
   const handleWheel = useCallback((e: WheelEvent) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    if (e.deltaY > 0 && el.scrollTop >= maxScrollableStep * vh - 1) {
+    // If the wheel event happened over a scrollable inner element (like the
+    // popup's content), allow that element to scroll normally. Only when the
+    // inner element cannot scroll further in the delta direction do we
+    // intercept and perform the step-based page scroll via accumulator.
+    const target = e.target as HTMLElement | null;
+
+    const findScrollable = (node: HTMLElement | null): HTMLElement | null => {
+      while (node && node !== document.body) {
+        const style = window.getComputedStyle(node);
+        const overflowY = style.overflowY;
+        if ((overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") && node.scrollHeight > node.clientHeight) {
+          return node;
+        }
+        node = node.parentElement;
+      }
+      return null;
+    };
+
+    const scrollable = findScrollable(target);
+    if (scrollable) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollable;
+      const atTop = scrollTop <= 0;
+      const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+
+      if ((e.deltaY < 0 && !atTop) || (e.deltaY > 0 && !atBottom)) {
+        // Let the inner scrollable element handle the wheel event.
+        return;
+      }
+      // otherwise fallthrough to handle step scroll when inner can't move
+    }
+
+    // Ignore new inputs while animating between steps
+    if (isAnimating) {
+      e.preventDefault();
+      return;
+    }
+
+    // Accumulate wheel deltas and trigger a step when threshold reached.
+    // Reset accumulator after a short idle period.
+    wheelAccRef.current += e.deltaY;
+    if (wheelTimeoutRef.current) {
+      window.clearTimeout(wheelTimeoutRef.current);
+    }
+    wheelTimeoutRef.current = window.setTimeout(() => {
+      wheelAccRef.current = 0;
+      wheelTimeoutRef.current = null;
+    }, 300);
+
+    const threshold = vh * 0.2; // 20% of viewport height
+    if (Math.abs(wheelAccRef.current) >= threshold) {
+      const dir = wheelAccRef.current > 0 ? 1 : -1; // positive -> down
+      const nextIdx = Math.min(Math.max(visibleStepIdx + dir, 0), maxScrollableStep);
+      if (nextIdx !== visibleStepIdx) {
+        e.preventDefault();
+        // perform step snap
+        scrollToStep(nextIdx);
+      }
+      // reset
+      wheelAccRef.current = 0;
+      if (wheelTimeoutRef.current) {
+        window.clearTimeout(wheelTimeoutRef.current);
+        wheelTimeoutRef.current = null;
+      }
+    } else {
+      // prevent native page scroll while accumulating
       e.preventDefault();
     }
-  }, [maxScrollableStep, vh]);
+  }, [maxScrollableStep, vh, isAnimating, visibleStepIdx, scrollToStep]);
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.addEventListener("scroll", handleScroll, { passive: true });
-    el.addEventListener("wheel",  handleWheel,  { passive: false });
-    return () => {
-      el.removeEventListener("scroll", handleScroll);
-      el.removeEventListener("wheel",  handleWheel);
-    };
-  }, [handleScroll, handleWheel]);
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -273,24 +345,21 @@ export default function DemoPage() {
         })}
       </div>
 
-      {/* ── Left: scrollable step text (28%) ── */}
       <div
-        ref={scrollRef}
         style={{
           position: "absolute", left: 0, top: 0,
           width: "28%", height: "100vh",
-          overflowY: "scroll", scrollbarWidth: "none",
+          overflow: "hidden",
         }}
       >
-        <div style={{ height: `${STEP_COUNT * vh}px` }}>
+        <div style={{
+          height: `${STEP_COUNT * vh}px`,
+          transform: `translateY(-${scrollY}px)`,
+          transition: isAnimating ? "transform 650ms cubic-bezier(0.16,1,0.3,1)" : "none",
+        }}>
           {STEPS.map((s, i) => {
             const isActive = visibleStepIdx === i;
             const done     = stepDone[i];
-
-            let action: (() => void) | undefined;
-            let actionLabel = "";
-            if (i === 0 && chzzkState === "disconnected") { action = handleChzzkConnect; actionLabel = "Connect 해보기"; }
-            if (i === 1 && chzzkState === "connected" && riotState === "disconnected") { action = handleRiotOAuth; actionLabel = "Riot OAuth 해보기"; }
 
             return (
               <div
@@ -339,33 +408,6 @@ export default function DemoPage() {
                 {s.sub && (
                   <p style={{ fontSize: 13, color: "#52525b", lineHeight: 1.6, maxWidth: 340, marginTop: 8 }}>{s.sub}</p>
                 )}
-
-                {action && !done && isActive && (
-                  <button
-                    onClick={action}
-                    style={{
-                      marginTop: 28, alignSelf: "flex-start",
-                      padding: "10px 22px",
-                      background: "rgba(129,140,248,0.1)",
-                      border: "1px solid rgba(129,140,248,0.3)",
-                      borderRadius: 8, color: "#a5b4fc",
-                      fontFamily: "Rajdhani, sans-serif", fontSize: 13, fontWeight: 600,
-                      letterSpacing: "0.08em", textTransform: "uppercase",
-                      cursor: "pointer", transition: "background 200ms ease, border-color 200ms ease",
-                      animation: "demo-fade-up 0.4s ease both",
-                    }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLButtonElement).style.background = "rgba(129,140,248,0.18)";
-                      (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(129,140,248,0.5)";
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLButtonElement).style.background = "rgba(129,140,248,0.1)";
-                      (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(129,140,248,0.3)";
-                    }}
-                  >
-                    {actionLabel} →
-                  </button>
-                )}
               </div>
             );
           })}
@@ -376,37 +418,96 @@ export default function DemoPage() {
       <div style={{
         position: "fixed", left: "28%", right: 0, top: 0,
         height: "100vh",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        gap: 32, padding: "0 48px", overflow: "hidden",
+        padding: "0 48px", overflow: "hidden",
       }}>
-        {/* Popup: nudges left when chat appears; scaled up */}
         <div style={{
-          flexShrink: 0,
-          transition: "transform 650ms cubic-bezier(0.16,1,0.3,1)",
+          position: "absolute",
+          left: 220,
+          top: "50%",
           transform: showChat
-            ? "translateX(-16px) scale(1.05)"
-            : "translateX(0) scale(1.15)",
+            ? "translateY(-50%) translateX(-16px) scale(1.05)"
+            : "translateY(-50%) translateX(0) scale(1.15)",
           transformOrigin: "center right",
+          opacity: showPopup ? 1 : 0,
+          pointerEvents: showPopup ? "auto" : "none",
+          transition: "transform 650ms cubic-bezier(0.16,1,0.3,1), opacity 450ms ease",
+          zIndex: 20,
         }}>
           {popup}
         </div>
 
-        {/* Chat: slides in from right when step 4 reached */}
+        {/* OBS overlay: centered slot */}
         <div style={{
-          flexShrink: 0, width: 360,
-          opacity: showChat ? 1 : 0,
-          transform: showChat ? "translateX(0)" : "translateX(20px)",
-          transition: "opacity 550ms ease, transform 650ms cubic-bezier(0.16,1,0.3,1)",
-          pointerEvents: showChat ? "auto" : "none",
+          position: "absolute",
+          left: "48%",
+          top: "50%",
+          transform: "translate(-50%,-50%)",
+          width: 620,
+          height: 480,
+          zIndex: 10,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}>
-          <p style={{
-            fontFamily: "Rajdhani, sans-serif", fontSize: 11, fontWeight: 600,
-            letterSpacing: "0.12em", textTransform: "uppercase",
-            color: "#52525b", marginBottom: 8, textAlign: "center",
+          <div style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: showOverlay ? 1 : 0,
+            transform: showOverlay ? "translateX(0)" : "translateX(20px)",
+            transition: "opacity 550ms ease, transform 650ms cubic-bezier(0.16,1,0.3,1)",
+            pointerEvents: showOverlay ? "auto" : "none",
           }}>
-            치지직 채팅창 미리보기
-          </p>
-          <MockChat nick="test user" nickColor="#a78bfa" tiers={chatTiers} />
+            <p style={{
+              fontFamily: "Rajdhani, sans-serif", fontSize: 11, fontWeight: 600,
+              letterSpacing: "0.12em", textTransform: "uppercase",
+              color: "#52525b", marginBottom: 8, textAlign: "center",
+            }}>
+              OBS 오버레이 미리보기
+            </p>
+            <div style={{ display: "flex", flexDirection: "row", gap: 30, transformOrigin: "top center" }}>
+              <BadgeList viewers={MOCK_OVERLAY_VIEWERS} gameType="lol" />
+              <TierStats viewers={MOCK_OVERLAY_VIEWERS} gameType="lol" />
+            </div>
+          </div>
+        </div>
+
+        {/* Chat preview: separate slot (to the right of center) */}
+        <div style={{
+          position: "absolute",
+          left: "48%",
+          top: "25%",
+          width: 384,
+          height: 480,
+          zIndex: 9,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}>
+          <div style={{
+            width: "100%",
+            maxWidth: 384,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: showChat ? 1 : 0,
+            transform: showChat ? "translateX(0)" : "translateX(20px)",
+            transition: "opacity 550ms ease, transform 650ms cubic-bezier(0.16,1,0.3,1)",
+            pointerEvents: showChat ? "auto" : "none",
+          }}>
+            <p style={{
+              fontFamily: "Rajdhani, sans-serif", fontSize: 11, fontWeight: 600,
+              letterSpacing: "0.12em", textTransform: "uppercase",
+              color: "#52525b", marginBottom: 8, textAlign: "center",
+            }}>
+              치지직 채팅창 미리보기
+            </p>
+            <MockChat nick="test user" nickColor="#a78bfa" tiers={chatTiers} />
+          </div>
         </div>
       </div>
     </div>

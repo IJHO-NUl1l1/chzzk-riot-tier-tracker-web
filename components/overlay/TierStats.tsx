@@ -45,7 +45,6 @@ export default function TierStats({ viewers, gameType = DEFAULT_GAME_TYPE }: Tie
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const tiers = TIER_ORDER.filter((t) => counts[t]);
-  const modeTier = tiers.length > 0 ? tiers.reduce((a, b) => (counts[a] >= counts[b] ? a : b)) : null;
 
   return (
     <OverlayCard
@@ -60,7 +59,6 @@ export default function TierStats({ viewers, gameType = DEFAULT_GAME_TYPE }: Tie
           const pct = total > 0 ? Math.round((count / total) * 100) : 0;
           const color = TIER_COLORS[tier];
           const imgName = TIER_IMG_MAP[tier];
-          const isMode = tier === modeTier && tiers.length > 1;
 
           return (
             <div
@@ -74,10 +72,7 @@ export default function TierStats({ viewers, gameType = DEFAULT_GAME_TYPE }: Tie
                   alt={tier}
                   width={TIER_EMBLEM_SIZE}
                   height={TIER_EMBLEM_SIZE}
-                  style={{
-                    flexShrink: 0,
-                    filter: isMode ? `drop-shadow(0 0 5px ${color}b0)` : `drop-shadow(0 0 2px ${color}50)`,
-                  }}
+                  style={{ flexShrink: 0, filter: `drop-shadow(0 0 4px ${color}90)` }}
                 />
               )}
 
