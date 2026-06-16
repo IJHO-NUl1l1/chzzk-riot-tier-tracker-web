@@ -1,9 +1,11 @@
 import Image from "next/image";
+import OverlayCard from "./OverlayCard";
 import {
   TIER_ORDER,
   TIER_COLORS,
   TIER_IMG_MAP,
-  OVERLAY_CARD_STYLE,
+  TIER_EMBLEM_SIZE,
+  TIER_LABEL_STYLE,
   DEFAULT_GAME_TYPE,
   gameLabel,
   pickBestEntryForGame,
@@ -43,47 +45,19 @@ export default function TierStats({ viewers, gameType = DEFAULT_GAME_TYPE }: Tie
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const tiers = TIER_ORDER.filter((t) => counts[t]);
-
-  if (tiers.length === 0) {
-    return (
-      <div style={OVERLAY_CARD_STYLE}>
-        <div className="text-xs font-bold" style={{ color: "#e4e4e7", marginBottom: 8 }}>
-          📊 티어 분포 ({gameLabel(gameType)})
-        </div>
-        <div className="text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>
-          데이터 없음
-        </div>
-      </div>
-    );
-  }
-
-  const max = Math.max(...tiers.map((t) => counts[t]));
-  const modeTier = tiers.reduce((a, b) => (counts[a] >= counts[b] ? a : b));
+  const modeTier = tiers.length > 0 ? tiers.reduce((a, b) => (counts[a] >= counts[b] ? a : b)) : null;
 
   return (
-    <div style={OVERLAY_CARD_STYLE}>
-      <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-        <span className="text-xs font-bold" style={{ color: "#e4e4e7", letterSpacing: 0.2 }}>
-          📊 티어 분포 ({gameLabel(gameType)})
-        </span>
-        <span
-          className="text-xs font-bold"
-          style={{
-            color: "rgba(255,255,255,0.5)",
-            background: "rgba(255,255,255,0.08)",
-            borderRadius: 999,
-            padding: "1px 8px",
-          }}
-        >
-          총 {total}명
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-1.5 w-full">
+    <OverlayCard
+      icon="📊"
+      title={`티어 분포 (${gameLabel(gameType)})`}
+      badge={`총 ${total}명`}
+      emptyMessage={tiers.length === 0 ? "데이터 없음" : undefined}
+    >
+      <div className="flex flex-col gap-1 w-full">
         {tiers.map((tier) => {
           const count = counts[tier];
           const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-          const barWidth = max > 0 ? (count / max) * 100 : 0;
           const color = TIER_COLORS[tier];
           const imgName = TIER_IMG_MAP[tier];
           const isMode = tier === modeTier && tiers.length > 1;
@@ -98,8 +72,8 @@ export default function TierStats({ viewers, gameType = DEFAULT_GAME_TYPE }: Tie
                 <Image
                   src={`/images/RankedEmblemsLatest/Rank=${imgName}.png`}
                   alt={tier}
-                  width={20}
-                  height={20}
+                  width={TIER_EMBLEM_SIZE}
+                  height={TIER_EMBLEM_SIZE}
                   style={{
                     flexShrink: 0,
                     filter: isMode ? `drop-shadow(0 0 5px ${color}b0)` : `drop-shadow(0 0 2px ${color}50)`,
@@ -107,34 +81,15 @@ export default function TierStats({ viewers, gameType = DEFAULT_GAME_TYPE }: Tie
                 />
               )}
 
-              <span
-                className="font-extrabold whitespace-nowrap overflow-hidden"
-                style={{
-                  width: 86,
-                  flexShrink: 0,
-                  fontSize: 11,
-                  textOverflow: "ellipsis",
-                  ...tierGradientTextStyle(tier),
-                }}
-              >
+              <span style={{ ...TIER_LABEL_STYLE, ...tierGradientTextStyle(tier) }}>
                 {tier}
               </span>
 
-              <div className="flex-1 flex items-center gap-2" style={{ minWidth: 0 }}>
-                <div
-                  className="flex-1 rounded-full overflow-hidden"
-                  style={{ background: "rgba(255,255,255,0.08)", height: 6 }}
+              <div className="flex-1 flex items-center gap-2" style={{ minWidth: 0, justifyContent: "flex-end" }}>
+                <span
+                  className="text-right"
+                  style={{ width: 22, flexShrink: 0, fontSize: 13, fontWeight: 800, color }}
                 >
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${barWidth}%`,
-                      background: color,
-                      boxShadow: isMode ? `0 0 8px ${color}b0` : `0 0 4px ${color}60`,
-                    }}
-                  />
-                </div>
-                <span className="text-xs font-bold w-6 text-right" style={{ color }}>
                   {count}
                 </span>
                 <span className="text-xs w-9 text-right" style={{ color: "rgba(255,255,255,0.4)" }}>
@@ -145,6 +100,6 @@ export default function TierStats({ viewers, gameType = DEFAULT_GAME_TYPE }: Tie
           );
         })}
       </div>
-    </div>
+    </OverlayCard>
   );
 }

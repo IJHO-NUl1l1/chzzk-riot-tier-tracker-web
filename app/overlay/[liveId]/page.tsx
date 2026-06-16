@@ -13,6 +13,7 @@ interface TierEntry {
   game_type: string;
   tier: string;
   rank: string | null;
+  lp?: number;
   is_public?: boolean;
 }
 

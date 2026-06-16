@@ -123,8 +123,9 @@ export function pickBestEntryForGame<T extends GameRankableEntry>(
   return pickBestEntry(entries.filter((e) => e.game_type === gameType));
 }
 
-// 두 컴포넌트가 공유하는 "글래스 카드" 셸 스타일. 상단 그라디언트 라인 +
-// 반투명 블러 배경으로 통일된 브랜드 톤을 준다.
+// 두 컴포넌트가 공유하는 "글래스 카드" 셸 스타일. 시청자 랭킹/티어 분포가
+// 서로 다른 크기로 보이지 않도록 width를 고정값으로 둔다(fit-content면
+// 내용에 따라 카드 폭이 서로 달라진다).
 export const OVERLAY_CARD_STYLE: CSSProperties = {
   background: "rgba(18,18,22,0.55)",
   backdropFilter: "blur(10px)",
@@ -133,7 +134,24 @@ export const OVERLAY_CARD_STYLE: CSSProperties = {
   borderRadius: 16,
   padding: "10px 12px",
   boxShadow: "0 4px 24px rgba(0,0,0,0.35)",
-  width: "fit-content",
-  minWidth: 220,
+  width: 300,
+};
+
+// 행 안에서 엠블럼 크기도 두 컴포넌트가 동일하게 쓴다.
+export const TIER_EMBLEM_SIZE = 22;
+
+/**
+ * 티어 이름 텍스트의 레이아웃(폭/폰트 크기/말줄임)을 두 컴포넌트가 공유한다.
+ * 그라데이션 색만 tierGradientTextStyle로 따로 입힌다. 폭은 "PLATINUM III"
+ * 처럼 가장 긴 티어+디비전 조합도 잘리지 않도록 여유 있게 잡았다.
+ */
+export const TIER_LABEL_STYLE: CSSProperties = {
+  width: 104,
+  flexShrink: 0,
+  fontSize: 13,
+  fontWeight: 800,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
 };
 
