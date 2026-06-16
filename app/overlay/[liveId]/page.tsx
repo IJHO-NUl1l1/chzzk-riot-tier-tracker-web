@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import BadgeList from "@/components/overlay/BadgeList";
 import TierStats from "@/components/overlay/TierStats";
+import { DEFAULT_GAME_TYPE, type GameType } from "@/components/overlay/tierConstants";
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
 
@@ -25,6 +26,9 @@ export default function OverlayPage() {
   const searchParams = useSearchParams();
   const liveId = params.liveId as string;
   const mode = searchParams.get("mode") ?? "list";
+  // ?game=lol|tft 가 아니면 기본값(LoL)으로 둔다 — 잘못된 값이 들어와도
+  // 화면이 깨지지 않도록 명시적으로 검증한다.
+  const gameType: GameType = searchParams.get("game") === "tft" ? "tft" : DEFAULT_GAME_TYPE;
 
   const [viewers, setViewers] = useState<Viewer[]>([]);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -161,8 +165,8 @@ export default function OverlayPage() {
         fontFamily: "Pretendard, sans-serif",
       }}
     >
-      {mode === "list" && <BadgeList viewers={viewers} />}
-      {mode === "stats" && <TierStats viewers={viewers} />}
+      {mode === "list" && <BadgeList viewers={viewers} gameType={gameType} />}
+      {mode === "stats" && <TierStats viewers={viewers} gameType={gameType} />}
     </div>
   );
 }
