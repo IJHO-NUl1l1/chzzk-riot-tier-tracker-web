@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { TIERS, FEATURES, STEPS, TECH } from "@/lib/data";
 import MockChat from "@/components/MockChat";
+import SiteHeader from "@/components/SiteHeader";
 
 const NICK_COLORS = ["#5ac97d", "#a78bfa", "#60a5fa", "#f472b6", "#34d399", "#fb923c"];
 
@@ -12,22 +13,11 @@ export default function Home() {
   const randNum   = Math.floor(Math.random() * 9000 + 1000);
   const randColor = NICK_COLORS[Math.floor(Math.random() * NICK_COLORS.length)];
   const randTier  = TIERS[Math.floor(Math.random() * TIERS.length)].name;
+  const randLp    = Math.floor(Math.random() * 100);
   return (
     <div className="flex flex-col min-h-screen" style={{ background: "#0a0a0f", color: "#e4e4e7" }}>
 
-      {/* ── Nav ── */}
-      <header className="sticky top-0 z-50 border-b backdrop-blur-md"
-        style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(10,10,15,0.85)" }}>
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <span className="shimmer-text font-[family-name:var(--font-rajdhani)] text-xl font-bold tracking-widest uppercase">
-            CRTT
-          </span>
-          <nav className="flex items-center gap-6 text-sm" style={{ color: "#71717a" }}>
-            <Link href="/demo" className="hover:text-white transition-colors">Demo</Link>
-            <Link href="https://github.com/IJHO-NUl1l1/chzzk-riot-tier-tracker" target="_blank" className="hover:text-white transition-colors">GitHub</Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="flex-1">
 
@@ -63,7 +53,7 @@ export default function Home() {
             </div>
 
             {/* Mock Chat Preview */}
-            <MockChat nick={`user#${randNum}`} nickColor={randColor} tiers={[{ tier: randTier, gameType: "lol" }]} />
+            <MockChat nick={`user#${randNum}`} nickColor={randColor} tiers={[{ tier: randTier, gameType: "lol", lp: randLp }]} />
 
             {/* Tier emblem strip — scattered + interactive */}
             {(() => {

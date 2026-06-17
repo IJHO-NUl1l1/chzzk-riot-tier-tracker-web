@@ -40,7 +40,7 @@ export const FEATURES = [
   {
     icon: "📺",
     title: "OBS 오버레이",
-    desc: "스트리머는 시청자들의 티어를 OBS Browser Source URL 하나로 방송 화면에 바로 표시할 수 있습니다.",
+    desc: "스트리머는 시청자들의 티어 통계를 OBS Browser Source URL 하나로 방송 화면에 바로 표시할 수 있습니다.",
     accent: "#34d399",
   },
   {

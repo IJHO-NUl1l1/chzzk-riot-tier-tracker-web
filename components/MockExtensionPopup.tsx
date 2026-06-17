@@ -25,7 +25,7 @@ interface TierData {
 }
 
 export interface MockExtensionPopupProps {
-  highlight?: HighlightTarget;
+  highlights?: HighlightTarget[];
   chzzkState?: ChzzkState;
   riotState?: RiotState;
   channelName?: string;
@@ -36,9 +36,13 @@ export interface MockExtensionPopupProps {
   lolPublic?: boolean;
   tftPublic?: boolean;
   onChzzkConnect?: () => void;
+  onChzzkDisconnect?: () => void;
   onRiotOAuth?: () => void;
+  onRiotLogout?: () => void;
   onLolRegister?: () => void;
+  onLolUnlink?: () => void;
   onTftRegister?: () => void;
+  onTftUnlink?: () => void;
   onLolToggle?: (v: boolean) => void;
   onTftToggle?: (v: boolean) => void;
 }
@@ -155,7 +159,7 @@ function NavBar({ active }: { active: "home" | "search" | "settings" }) {
 
 function TierCol({
   game, data, isRegistered, highlight, isPublic,
-  onRegister, onToggle,
+  onRegister, onUnlink, onToggle,
 }: {
   game: "LoL" | "TFT";
   data: TierData | null | undefined;
@@ -163,6 +167,7 @@ function TierCol({
   highlight: boolean;
   isPublic?: boolean;
   onRegister?: () => void;
+  onUnlink?: () => void;
   onToggle?: (v: boolean) => void;
 }) {
   const tier = data?.tier?.toUpperCase() ?? "";
@@ -276,7 +281,7 @@ function TierCol({
       {/* action button */}
       <Highlight active={highlight}>
         <button
-          onClick={isRegistered ? undefined : onRegister}
+          onClick={isRegistered ? onUnlink : onRegister}
           style={{
             width: "100%",
             padding: "4px 0",
@@ -284,7 +289,7 @@ function TierCol({
             borderRadius: 4,
             fontFamily: "Rajdhani, sans-serif", fontSize: 10, fontWeight: 700,
             letterSpacing: "0.04em", textTransform: "uppercase",
-            cursor: isRegistered ? "pointer" : "pointer",
+            cursor: "pointer",
             color: isRegistered ? "#f87171" : "#71717a",
             background: "rgba(255,255,255,0.06)",
             transition: "all 150ms ease",
@@ -300,7 +305,7 @@ function TierCol({
 // ── Main Component ─────────────────────────────────────────────────────────
 
 export default function MockExtensionPopup({
-  highlight = null,
+  highlights = [],
   chzzkState = "disconnected",
   riotState = "disconnected",
   channelName = "test user",
@@ -311,9 +316,13 @@ export default function MockExtensionPopup({
   lolPublic = true,
   tftPublic = true,
   onChzzkConnect,
+  onChzzkDisconnect,
   onRiotOAuth,
+  onRiotLogout,
   onLolRegister,
+  onLolUnlink,
   onTftRegister,
+  onTftUnlink,
   onLolToggle,
   onTftToggle,
 }: MockExtensionPopupProps) {
@@ -443,22 +452,25 @@ export default function MockExtensionPopup({
 
             {/* Button */}
             {chzzkState === "connected" ? (
-              <button style={{
-                width: "100%",
-                padding: "8px 16px",
-                background: "transparent",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 6,
-                color: "#71717a",
-                fontFamily: "Rajdhani, sans-serif",
-                fontSize: 12, fontWeight: 600,
-                letterSpacing: "0.06em", textTransform: "uppercase",
-                cursor: "pointer",
-              }}>
+              <button
+                onClick={onChzzkDisconnect}
+
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  background: "transparent",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 6,
+                  color: "#71717a",
+                  fontFamily: "Rajdhani, sans-serif",
+                  fontSize: 12, fontWeight: 600,
+                  letterSpacing: "0.06em", textTransform: "uppercase",
+                  cursor: "pointer",
+                }}>
                 Disconnect
               </button>
             ) : (
-              <Highlight active={highlight === "chzzk-connect"}>
+              <Highlight active={highlights.includes("chzzk-connect")}>
                 <button
                   onClick={onChzzkConnect}
                   style={{
@@ -572,9 +584,10 @@ export default function MockExtensionPopup({
                   game="LoL"
                   data={lolData}
                   isRegistered={lolRegistered}
-                  highlight={highlight === "lol-register"}
+                  highlight={highlights.includes("lol-register")}
                   isPublic={lolPublic}
                   onRegister={onLolRegister}
+                  onUnlink={onLolUnlink}
                   onToggle={onLolToggle}
                 />
                 <div style={{ width: 1, background: "rgba(255,255,255,0.06)", alignSelf: "stretch" }} />
@@ -582,9 +595,10 @@ export default function MockExtensionPopup({
                   game="TFT"
                   data={tftData}
                   isRegistered={tftRegistered}
-                  highlight={highlight === "tft-register"}
+                  highlight={highlights.includes("tft-register")}
                   isPublic={tftPublic}
                   onRegister={onTftRegister}
+                  onUnlink={onTftUnlink}
                   onToggle={onTftToggle}
                 />
               </div>
@@ -592,7 +606,7 @@ export default function MockExtensionPopup({
 
             {/* OAuth button */}
             {riotState !== "connected" && (
-              <Highlight active={highlight === "riot-oauth"}>
+              <Highlight active={highlights.includes("riot-oauth")}>
                 <button
                   onClick={chzzkState === "connected" ? onRiotOAuth : undefined}
                   disabled={chzzkState !== "connected"}
@@ -630,18 +644,20 @@ export default function MockExtensionPopup({
 
             {/* Logout button (connected) */}
             {riotState === "connected" && (
-              <button style={{
-                width: "100%",
-                padding: "8px 16px",
-                background: "transparent",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 6,
-                color: "#71717a",
-                fontFamily: "Rajdhani, sans-serif",
-                fontSize: 12, fontWeight: 600,
-                letterSpacing: "0.06em", textTransform: "uppercase",
-                cursor: "pointer",
-              }}>
+              <button
+                onClick={onRiotLogout}
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  background: "transparent",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 6,
+                  color: "#71717a",
+                  fontFamily: "Rajdhani, sans-serif",
+                  fontSize: 12, fontWeight: 600,
+                  letterSpacing: "0.06em", textTransform: "uppercase",
+                  cursor: "pointer",
+                }}>
                 Logout
               </button>
             )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import SiteHeader from "@/components/SiteHeader";
 import MockExtensionPopup from "@/components/MockExtensionPopup";
 import MockChat, { type TierBadgeInfo } from "@/components/MockChat";
 import type { ChzzkState, RiotState, HighlightTarget } from "@/components/MockExtensionPopup";
@@ -75,7 +76,6 @@ export default function DemoPage() {
   const [lolPublic, setLolPublic] = useState(true);
   const [tftPublic, setTftPublic] = useState(true);
 
-  const [highlight, setHighlight] = useState<HighlightTarget>("chzzk-connect");
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
@@ -91,6 +91,17 @@ export default function DemoPage() {
   const visibleStepIdx = vh > 0
     ? Math.min(Math.round(scrollY / vh), STEP_COUNT - 1)
     : 0;
+
+  // 스텝별 하이라이트 — 상태에서 derive해서 앞뒤로 왔다 갔다 해도 항상 정확
+  const highlights: HighlightTarget[] =
+    visibleStepIdx === 0 ? ["chzzk-connect"] :
+    visibleStepIdx === 1 ? ["riot-oauth"] :
+    visibleStepIdx === 2 ? [
+      ...(!lolRegistered ? ["lol-register" as HighlightTarget] : []),
+      ...(!tftRegistered ? ["tft-register" as HighlightTarget] : []),
+    ] :
+    visibleStepIdx === 3 ? ["lol-toggle", "tft-toggle"] :
+    [];
 
   const stepDone = [
     chzzkState === "connected",
@@ -221,7 +232,6 @@ export default function DemoPage() {
     setChzzkState("connecting");
     setTimeout(() => {
       setChzzkState("connected");
-      setHighlight("riot-oauth");
       setTimeout(() => scrollToStep(1), 400);
     }, 900);
   }
@@ -233,7 +243,6 @@ export default function DemoPage() {
       setRiotState("connected");
       setLolData(MOCK_LOL);
       setTftData(MOCK_TFT);
-      setHighlight("lol-register");
       setTimeout(() => scrollToStep(2), 400);
     }, 1200);
   }
@@ -241,16 +250,43 @@ export default function DemoPage() {
   function handleLolRegister() {
     if (!lolData || lolRegistered) return;
     setLolRegistered(true);
-    setHighlight("tft-register");
-    if (!tftRegistered) return; // wait for both or just lol is enough
+    if (!tftRegistered) return;
     setTimeout(() => scrollToStep(3), 400);
   }
 
   function handleTftRegister() {
     if (!tftData || tftRegistered) return;
     setTftRegistered(true);
-    setHighlight(null);
     setTimeout(() => scrollToStep(3), 400);
+  }
+
+  function handleLolUnlink() {
+    setLolRegistered(false);
+    if (!tftRegistered) scrollToStep(2);
+  }
+
+  function handleTftUnlink() {
+    setTftRegistered(false);
+    if (!lolRegistered) scrollToStep(2);
+  }
+
+  function handleChzzkDisconnect() {
+    setChzzkState("disconnected");
+    setRiotState("disconnected");
+    setLolData(null);
+    setTftData(null);
+    setLolRegistered(false);
+    setTftRegistered(false);
+    scrollToStep(0);
+  }
+
+  function handleRiotLogout() {
+    setRiotState("disconnected");
+    setLolData(null);
+    setTftData(null);
+    setLolRegistered(false);
+    setTftRegistered(false);
+    scrollToStep(1);
   }
 
   // When either is registered, allow scrolling to step 4 (idx 3)
@@ -265,7 +301,7 @@ export default function DemoPage() {
 
   const popup = (
     <MockExtensionPopup
-      highlight={highlight}
+      highlights={highlights}
       chzzkState={chzzkState}
       riotState={riotState}
       lolData={lolData}
@@ -275,9 +311,13 @@ export default function DemoPage() {
       lolPublic={lolPublic}
       tftPublic={tftPublic}
       onChzzkConnect={handleChzzkConnect}
+      onChzzkDisconnect={handleChzzkDisconnect}
       onRiotOAuth={handleRiotOAuth}
+      onRiotLogout={handleRiotLogout}
       onLolRegister={handleLolRegister}
+      onLolUnlink={handleLolUnlink}
       onTftRegister={handleTftRegister}
+      onTftUnlink={handleTftUnlink}
       onLolToggle={setLolPublic}
       onTftToggle={setTftPublic}
     />
@@ -285,15 +325,22 @@ export default function DemoPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  const HEADER_H = 56;
+
   return (
-    <div style={{ height: "100vh", overflow: "hidden", background: "#080810", color: "#e4e4e7", position: "relative" }}>
+    <div style={{ height: "100vh", overflow: "hidden", background: "#080810", color: "#e4e4e7", display: "flex", flexDirection: "column" }}>
+      <SiteHeader />
+      <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Orbitron:wght@600&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
         ::-webkit-scrollbar { display: none; }
         @keyframes demo-fade-up {
           from { opacity: 0; transform: translateY(10px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes highlight-pulse {
+          0%,100% { box-shadow: 0 0 0 3px rgba(129,140,248,0.25), 0 0 12px rgba(129,140,248,0.4); }
+          50%      { box-shadow: 0 0 0 5px rgba(129,140,248,0.1),  0 0 20px rgba(129,140,248,0.6); }
         }
         @keyframes demo-check-pop {
           0%   { transform: scale(0);   opacity: 0; }
@@ -304,7 +351,7 @@ export default function DemoPage() {
 
       {/* ── Fixed vertical dot indicator ── */}
       <div style={{
-        position: "fixed", left: 28, top: "50%", transform: "translateY(-50%)",
+        position: "fixed", left: 28, top: `calc(50% + ${HEADER_H / 2}px)`, transform: "translateY(-50%)",
         display: "flex", flexDirection: "column", gap: 20, zIndex: 50,
       }}>
         {STEPS.map((_, i) => {
@@ -416,8 +463,8 @@ export default function DemoPage() {
 
       {/* ── Right: fixed demo panel (72%) ── */}
       <div style={{
-        position: "fixed", left: "28%", right: 0, top: 0,
-        height: "100vh",
+        position: "fixed", left: "28%", right: 0, top: HEADER_H,
+        height: `calc(100vh - ${HEADER_H}px)`,
         padding: "0 48px", overflow: "hidden",
       }}>
         <div style={{
@@ -448,6 +495,7 @@ export default function DemoPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          pointerEvents: showOverlay ? "auto" : "none",
         }}>
           <div style={{
             width: "100%",
@@ -506,9 +554,10 @@ export default function DemoPage() {
             }}>
               치지직 채팅창 미리보기
             </p>
-            <MockChat nick="test user" nickColor="#a78bfa" tiers={chatTiers} />
+            <MockChat nick="Faker" nickColor="#a78bfa" tiers={chatTiers} highlightInput={showChat} />
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

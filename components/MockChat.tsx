@@ -20,6 +20,7 @@ interface MockChatProps {
   nick: string;
   nickColor: string;
   tiers?: TierBadgeInfo[];
+  highlightInput?: boolean;
 }
 
 const MAX_MESSAGES = 6;
@@ -97,6 +98,10 @@ const SELF_CONTAINED_STYLES = `
     transform: scale(1.12);
   }
 
+  @keyframes mockchat-highlight-pulse {
+    0%,100% { box-shadow: 0 0 0 3px rgba(129,140,248,0.25), 0 0 12px rgba(129,140,248,0.4); }
+    50%      { box-shadow: 0 0 0 5px rgba(129,140,248,0.1),  0 0 20px rgba(129,140,248,0.6); }
+  }
   @keyframes mockchat-slideIn {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -187,15 +192,18 @@ function Tooltip({ state }: { state: TooltipState }) {
             ),
           }}>
             {/* SVG icon inline */}
-            {info.gameType === "lol" ? (
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
-              </svg>
-            ) : (
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
-            )}
+            <Image
+              src={info.gameType === "lol" ? "/images/lol-icon.svg" : "/images/tft-icon.svg"}
+              alt={info.gameType === "lol" ? "LOL" : "TFT"}
+              width={8}
+              height={8}
+              style={{
+                flexShrink: 0,
+                filter: info.gameType === "lol"
+                  ? "brightness(0) saturate(100%) invert(71%) sepia(49%) saturate(552%) hue-rotate(195deg) brightness(103%)"
+                  : "brightness(0) saturate(100%) invert(81%) sepia(46%) saturate(467%) hue-rotate(104deg) brightness(95%)",
+              }}
+            />
             <span>{info.gameType === "lol" ? "LOL" : "TFT"}</span>
           </div>
           {/* Tier text with gradient */}
@@ -229,7 +237,7 @@ function Tooltip({ state }: { state: TooltipState }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export default function MockChat({ nick, nickColor, tiers = [] }: MockChatProps) {
+export default function MockChat({ nick, nickColor, tiers = [], highlightInput = false }: MockChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(
     MOCK_CHAT.map((m, i) => ({
       id: i,
@@ -360,8 +368,11 @@ export default function MockChat({ nick, nickColor, tiers = [] }: MockChatProps)
           <div style={{
             flex: 1, display: "flex", alignItems: "center", gap: 8,
             borderRadius: 8, padding: "6px 12px",
-            background: "#2a2a32", border: "1px solid rgba(255,255,255,0.06)",
+            background: "#2a2a32",
+            border: highlightInput ? "1px solid #818cf8" : "1px solid rgba(255,255,255,0.06)",
+            animation: highlightInput ? "mockchat-highlight-pulse 1.5s ease-in-out infinite" : undefined,
             minWidth: 0,
+            transition: "box-shadow 400ms ease, border-color 400ms ease",
           }}>
             <input
               ref={inputRef}
