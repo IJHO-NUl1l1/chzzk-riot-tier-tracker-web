@@ -147,6 +147,7 @@ export default function OverlayPage() {
         if (!chzzkChannelName) return;
         const key = chzzkChannelName.toLowerCase();
 
+        // Update existing viewer entries if present (set is_public / remove hidden entries)
         setViewers((prev) =>
           prev
             .map((v) => {
@@ -160,6 +161,39 @@ export default function OverlayPage() {
             })
             .filter((v) => v.entries.length > 0)
         );
+
+        // If it was changed to public but the viewer isn't currently in state (was removed when set to private),
+        // fetch the viewer entries and add them back.
+        if (isPublic) {
+          (async () => {
+            try {
+              const res = await fetch(
+                `${SERVER_URL}/api/tier?chzzk_name=${encodeURIComponent(chzzkChannelName)}`
+              );
+              if (!res.ok) return;
+              const json = await res.json();
+              const entries: TierEntry[] = (json.entries ?? []).filter(
+                (e: TierEntry) => e.is_public !== false
+              );
+              if (!entries || entries.length === 0) return;
+
+              setViewers((prev) => {
+                const exists = prev.some((v) => v.chzzkChannelName?.toLowerCase() === key);
+                if (exists) {
+                  // Merge/replace entries for the given gameType
+                  return prev.map((v) =>
+                    v.chzzkChannelName?.toLowerCase() === key
+                      ? { ...v, entries: [...v.entries.filter((e) => e.game_type !== gameType), ...entries] }
+                      : v
+                  );
+                }
+                return [...prev, { chzzkChannelName, entries }];
+              });
+            } catch (err) {
+              console.error('[Overlay] failed to fetch entries for privacy_changed add:', err);
+            }
+          })();
+        }
       })
       .subscribe((status) => {
         console.log("[Overlay] channel status:", status);
