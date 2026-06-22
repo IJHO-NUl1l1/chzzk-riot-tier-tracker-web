@@ -18,7 +18,7 @@ interface TierEntry {
   game_type: string;
   tier: string;
   rank: string | null;
-  lp?: number;
+  league_points?: number;
 }
 
 interface Viewer {
@@ -58,8 +58,7 @@ export default function BadgeList({ viewers, gameType = DEFAULT_GAME_TYPE }: Bad
       const aw = DIVISION_WEIGHT[a.best.rank ?? ""] ?? 0;
       const bw = DIVISION_WEIGHT[b.best.rank ?? ""] ?? 0;
       if (aw !== bw) return bw - aw;
-      // 디비전까지 같으면(마스터 이상처럼 디비전이 없는 경우 포함) LP로 최종 비교.
-      return (b.best.lp ?? 0) - (a.best.lp ?? 0);
+      return (b.best.league_points ?? 0) - (a.best.league_points ?? 0);
     });
 
   const displayed = ranked.slice(0, TOP_N);
@@ -110,9 +109,9 @@ export default function BadgeList({ viewers, gameType = DEFAULT_GAME_TYPE }: Bad
                 {best.rank ? ` ${best.rank}` : ""}
               </span>
 
-              {typeof best.lp === "number" && (
+              {typeof best.league_points === "number" && (
                 <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 800, color: "#ffffff" }}>
-                  {best.lp}LP
+                  {best.league_points}LP
                 </span>
               )}
             </div>

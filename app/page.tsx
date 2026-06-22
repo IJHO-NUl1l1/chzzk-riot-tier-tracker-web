@@ -208,7 +208,7 @@ export default function Home() {
           <div className="flex gap-6 text-xs" style={{ color: "#52525b" }}>
             <Link href="https://github.com" target="_blank" className="hover:text-white transition-colors">GitHub</Link>
             <Link href="/demo" className="hover:text-white transition-colors">Demo</Link>
-            <Link href="/overlay" className="hover:text-white transition-colors">OBS Overlay</Link>
+            <Link href="/overlay-preview" className="hover:text-white transition-colors">OBS Overlay</Link>
           </div>
         </div>
       </footer>
