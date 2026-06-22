@@ -13,6 +13,7 @@ import {
   tierRowBackground,
   type GameType,
 } from "./tierConstants";
+import dedupeViewersByName from "./dedupe";
 
 interface TierEntry {
   game_type: string;
@@ -47,7 +48,9 @@ interface BadgeListProps {
 }
 
 export default function BadgeList({ viewers, gameType = DEFAULT_GAME_TYPE }: BadgeListProps) {
-  const ranked: RankedViewer[] = viewers
+  const safeViewers = dedupeViewersByName(viewers);
+
+  const ranked: RankedViewer[] = safeViewers
     .map((viewer) => {
       const picked = pickBestEntryForGame(viewer.entries, gameType);
       return picked ? { viewer, best: picked.entry, tierIdx: picked.tierIdx } : null;

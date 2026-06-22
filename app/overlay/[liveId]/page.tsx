@@ -65,12 +65,22 @@ export default function OverlayPage() {
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState<{ chzzkChannelName: string }>();
         console.log("[Overlay] presence sync, state:", state);
-        const names = Object.values(state)
+        const raw = Object.values(state)
           .flat()
-          .map((p) => p.chzzkChannelName)
-          .filter(Boolean);
-        console.log("[Overlay] names:", names);
-        fetchViewers(names);
+          .map((p) => p.chzzkChannelName?.trim())
+          .filter(Boolean) as string[];
+        console.log("[Overlay] raw names:", raw);
+        const seen = new Set<string>();
+        const uniqueNames: string[] = [];
+        for (const n of raw) {
+          const key = n.toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueNames.push(n);
+          }
+        }
+        console.log("[Overlay] unique names:", uniqueNames);
+        fetchViewers(uniqueNames);
       })
       .on("presence", { event: "join" }, ({ key, newPresences }) => {
         console.log("[Overlay] presence join:", key, newPresences);
@@ -88,8 +98,9 @@ export default function OverlayPage() {
         };
         if (!chzzkChannelName) return;
 
+        const key = chzzkChannelName.toLowerCase();
         setViewers((prev) => {
-          const existing = prev.find((v) => v.chzzkChannelName === chzzkChannelName);
+          const existing = prev.find((v) => v.chzzkChannelName?.toLowerCase() === key);
           if (!existing) return prev; // not in presence — ignore
 
           const updatedEntries = existing.entries.filter((e) => e.game_type !== gameType);
@@ -98,10 +109,10 @@ export default function OverlayPage() {
           }
 
           if (updatedEntries.length === 0) {
-            return prev.filter((v) => v.chzzkChannelName !== chzzkChannelName);
+            return prev.filter((v) => v.chzzkChannelName?.toLowerCase() !== key);
           }
           return prev.map((v) =>
-            v.chzzkChannelName === chzzkChannelName ? { ...v, entries: updatedEntries } : v
+            v.chzzkChannelName?.toLowerCase() === key ? { ...v, entries: updatedEntries } : v
           );
         });
       })
@@ -111,11 +122,12 @@ export default function OverlayPage() {
           gameType: string | null;
         };
         if (!chzzkChannelName) return;
+        const key = chzzkChannelName.toLowerCase();
 
         setViewers((prev) =>
           prev
             .map((v) => {
-              if (v.chzzkChannelName !== chzzkChannelName) return v;
+              if (v.chzzkChannelName?.toLowerCase() !== key) return v;
               return {
                 ...v,
                 entries: gameType
@@ -133,11 +145,12 @@ export default function OverlayPage() {
           isPublic: boolean;
         };
         if (!chzzkChannelName) return;
+        const key = chzzkChannelName.toLowerCase();
 
         setViewers((prev) =>
           prev
             .map((v) => {
-              if (v.chzzkChannelName !== chzzkChannelName) return v;
+              if (v.chzzkChannelName?.toLowerCase() !== key) return v;
               const updatedEntries = v.entries
                 .map((e) =>
                   !gameType || e.game_type === gameType ? { ...e, is_public: isPublic } : e

@@ -13,6 +13,7 @@ import {
   tierRowBackground,
   type GameType,
 } from "./tierConstants";
+import dedupeViewersByName from "./dedupe";
 
 interface TierEntry {
   game_type: string;
@@ -33,13 +34,16 @@ interface TierStatsProps {
 }
 
 export default function TierStats({ viewers, gameType = DEFAULT_GAME_TYPE }: TierStatsProps) {
-  // 티어별 카운트 집계. BadgeList의 랭킹과 동일한 기준(같은 게임 안에서 가장
-  // 높은 티어/디비전)으로 한 명당 하나씩만 센다.
+  // 컴포넌트 레벨 방어: 입력 viewers 자체에 중복 시청자(같은 이름)가 있을 수
+  // 있으므로 일단 이름 기준으로 dedupe한 뒤 집계한다.
+  const deduped = dedupeViewersByName(viewers);
+
   const counts: Record<string, number> = {};
-  for (const viewer of viewers) {
+  for (const viewer of deduped) {
     const picked = pickBestEntryForGame(viewer.entries, gameType);
     if (!picked) continue;
-    const t = picked.entry.tier.toUpperCase();
+    const t = (picked.entry.tier ?? "").toUpperCase();
+    if (!t) continue;
     counts[t] = (counts[t] ?? 0) + 1;
   }
 
