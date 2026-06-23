@@ -209,7 +209,7 @@ export default function OverlayPage() {
       className="p-3"
       style={{
         background: "transparent",
-        minHeight: "100vh",
+        width: "fit-content",
         fontFamily: "Pretendard, sans-serif",
       }}
     >
