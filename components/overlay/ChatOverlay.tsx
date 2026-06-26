@@ -353,9 +353,8 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
 
     channel
       .on("broadcast", { event: "tier_updated" }, ({ payload }) => {
-        const { chzzkChannelName, gameType, tier, rank, isPublic } = payload as {
+        const { chzzkChannelName, tier, rank, isPublic } = payload as {
           chzzkChannelName: string;
-          gameType: string;
           tier: string | null;
           rank: string | null;
           isPublic: boolean;
@@ -408,7 +407,9 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
           delete tierCacheRef.current[chzzkChannelName];
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`[ChatOverlay] realtime ${status} — tier_updates:${channelId}`);
+      });
 
     return () => {
       supabase.removeChannel(channel);
