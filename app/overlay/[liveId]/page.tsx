@@ -36,7 +36,7 @@ export default function OverlayPage() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
-    if (!liveId) return;
+    if (!liveId || mode === "chat") return;
 
     const channel = supabase.channel(`tier_updates:${liveId}`);
     channelRef.current = channel;
