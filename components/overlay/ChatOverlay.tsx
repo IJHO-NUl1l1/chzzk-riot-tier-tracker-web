@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { TIER_COLORS, TIER_IMG_MAP } from "./tierConstants";
+import { supabase } from "@/lib/supabase";
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
 const WS_SERVERS = Array.from({ length: 20 }, (_, i) => `wss://kr-ss${i + 1}.chat.naver.com/chat`);
@@ -341,6 +342,76 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
       alive = false;
       wsRef.current?.close();
       wsRef.current = null;
+    };
+  }, [channelId]);
+
+  // Supabase realtime: tier 변동을 실시간으로 반영
+  useEffect(() => {
+    if (!channelId) return;
+
+    const channel = supabase.channel(`tier_updates:${channelId}`);
+
+    channel
+      .on("broadcast", { event: "tier_updated" }, ({ payload }) => {
+        const { chzzkChannelName, gameType, tier, rank, isPublic } = payload as {
+          chzzkChannelName: string;
+          gameType: string;
+          tier: string | null;
+          rank: string | null;
+          isPublic: boolean;
+        };
+        if (!chzzkChannelName) return;
+        const key = chzzkChannelName.toLowerCase();
+
+        // 비공개면 캐시에서 제거 후 메시지 뱃지 숨김
+        if (!isPublic || !tier) {
+          tierCacheRef.current[chzzkChannelName] = null;
+          setMessages((prev) =>
+            prev.map((m) => m.nickname.toLowerCase() === key ? { ...m, tier: null, rank: null } : m)
+          );
+          return;
+        }
+
+        // 캐시 갱신 (게임 타입 구분 없이 가장 최신 정보로 덮어씀)
+        tierCacheRef.current[chzzkChannelName] = { tier, rank: rank ?? null, fetchedAt: Date.now() };
+
+        // 화면에 이미 표시된 메시지 뱃지도 즉시 갱신
+        setMessages((prev) =>
+          prev.map((m) => m.nickname.toLowerCase() === key ? { ...m, tier, rank: rank ?? null } : m)
+        );
+      })
+      .on("broadcast", { event: "tier_deleted" }, ({ payload }) => {
+        const { chzzkChannelName } = payload as { chzzkChannelName: string };
+        if (!chzzkChannelName) return;
+        const key = chzzkChannelName.toLowerCase();
+
+        tierCacheRef.current[chzzkChannelName] = null;
+        setMessages((prev) =>
+          prev.map((m) => m.nickname.toLowerCase() === key ? { ...m, tier: null, rank: null } : m)
+        );
+      })
+      .on("broadcast", { event: "privacy_changed" }, ({ payload }) => {
+        const { chzzkChannelName, isPublic } = payload as {
+          chzzkChannelName: string;
+          isPublic: boolean;
+        };
+        if (!chzzkChannelName) return;
+        const key = chzzkChannelName.toLowerCase();
+
+        if (!isPublic) {
+          tierCacheRef.current[chzzkChannelName] = null;
+          setMessages((prev) =>
+            prev.map((m) => m.nickname.toLowerCase() === key ? { ...m, tier: null, rank: null } : m)
+          );
+        } else {
+          // 공개로 전환 → 캐시 만료시켜서 다음 채팅 시 재조회
+          delete tierCacheRef.current[chzzkChannelName];
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
   }, [channelId]);
 
