@@ -1,42 +1,91 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { TIER_COLORS, TIER_IMG_MAP, type GameType } from "./tierConstants";
+import { TIER_COLORS, TIER_IMG_MAP } from "./tierConstants";
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
 const WS_SERVERS = Array.from({ length: 20 }, (_, i) => `wss://kr-ss${i + 1}.chat.naver.com/chat`);
+const TIER_CACHE_TTL = 5 * 60 * 1000;
+
+const ROLE_BADGE_URL: Record<string, string> = {
+  streamer: "https://ssl.pstatic.net/static/nng/glive/badge/streamer.png",
+  manager: "https://ssl.pstatic.net/static/nng/glive/badge/manager.png",
+};
+
+const ROLE_NICKNAME_COLOR: Record<string, string> = {
+  streamer: "#F9D749",
+  manager: "#59E0A3",
+};
+
+interface ChzzkBadge {
+  imageUrl: string;
+}
 
 interface ChatMessage {
   id: string;
   nickname: string;
+  nicknameColor: string;
+  roleBadgeUrl: string | null;
+  viewerBadges: ChzzkBadge[];
   msg: string;
+  emojis: Record<string, string>;
   tier?: string | null;
   rank?: string | null;
 }
 
-interface TierCache {
-  [nickname: string]: { tier: string | null; rank: string | null; fetchedAt: number } | null;
+interface TierCacheEntry {
+  tier: string | null;
+  rank: string | null;
+  fetchedAt: number;
 }
 
-const TIER_CACHE_TTL = 5 * 60 * 1000;
+function resolveNicknameColor(colorCode: string | undefined | null, userRoleCode: string): string {
+  if (ROLE_NICKNAME_COLOR[userRoleCode]) return ROLE_NICKNAME_COLOR[userRoleCode];
+  if (!colorCode) return "#FFFFFF";
+  // Chzzk stores hex without '#', 5-char codes get a leading 0 to form 6-char hex
+  const hex = colorCode.length === 5 ? `0${colorCode}` : colorCode;
+  return `#${hex}`;
+}
 
 function TierBadge({ tier, rank }: { tier: string; rank?: string | null }) {
   const upper = tier.toUpperCase();
   const color = TIER_COLORS[upper] ?? "#888";
   const imgName = TIER_IMG_MAP[upper];
-  const imgUrl = imgName
-    ? `/images/RankedEmblemsLatest/Rank=${imgName}.png`
-    : null;
-
+  const imgUrl = imgName ? `/images/RankedEmblemsLatest/Rank=${imgName}.png` : null;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, marginRight: 4, verticalAlign: "middle" }}>
-      {imgUrl && (
-        <img src={imgUrl} alt={tier} width={16} height={16} style={{ display: "block" }} />
-      )}
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 2, marginRight: 4, verticalAlign: "middle" }}>
+      {imgUrl && <img src={imgUrl} alt={tier} width={16} height={16} style={{ display: "block" }} />}
       <span style={{ fontSize: 11, fontWeight: 700, color, lineHeight: 1 }}>
         {upper}{rank ? ` ${rank}` : ""}
       </span>
     </span>
+  );
+}
+
+function MessageContent({ msg, emojis }: { msg: string; emojis: Record<string, string> }) {
+  const parts = msg.split(/(\{:[^}]+:\})/);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const match = part.match(/^\{:([^}]+):\}$/);
+        if (match) {
+          const emojiUrl = emojis[match[1]];
+          if (emojiUrl) {
+            return (
+              <img
+                key={i}
+                src={emojiUrl}
+                alt={part}
+                width={20}
+                height={20}
+                style={{ display: "inline", verticalAlign: "middle" }}
+              />
+            );
+          }
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
   );
 }
 
@@ -49,9 +98,9 @@ async function connectWs(url: string): Promise<WebSocket> {
   });
 }
 
-export default function ChatOverlay({ channelId, gameType }: { channelId: string; gameType: GameType }) {
+export default function ChatOverlay({ channelId }: { channelId: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const tierCacheRef = useRef<TierCache>({});
+  const tierCacheRef = useRef<Record<string, TierCacheEntry | null>>({});
   const wsRef = useRef<WebSocket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -62,13 +111,12 @@ export default function ChatOverlay({ channelId, gameType }: { channelId: string
         return cache ?? { tier: null, rank: null };
       }
     }
-
     try {
       const res = await fetch(`${SERVER_URL}/api/tier?chzzk_name=${encodeURIComponent(nickname)}`);
       if (!res.ok) { tierCacheRef.current[nickname] = null; return { tier: null, rank: null }; }
       const json = await res.json();
       const entries: any[] = json.entries ?? [];
-      const entry = entries.find((e) => e.game_type === gameType);
+      const entry = entries[0];
       const result = entry ? { tier: entry.tier, rank: entry.rank ?? null } : { tier: null, rank: null };
       tierCacheRef.current[nickname] = { ...result, fetchedAt: Date.now() };
       return result;
@@ -82,38 +130,30 @@ export default function ChatOverlay({ channelId, gameType }: { channelId: string
     let alive = true;
 
     async function connect() {
-      // chatChannelId 획득
       let chatChannelId: string;
       let accessToken: string;
       try {
-        const [chRes, tkRes] = await Promise.all([
-          fetch(`${SERVER_URL}/api/chzzk/chat-channel?channelId=${encodeURIComponent(channelId)}`),
-          // accessToken은 chatChannelId 없이 못 가져오므로 순서대로
-        ]);
+        const chRes = await fetch(`${SERVER_URL}/api/chzzk/chat-channel?channelId=${encodeURIComponent(channelId)}`);
         if (!chRes.ok) return;
         const chData = await chRes.json();
         chatChannelId = chData.chatChannelId;
 
-        const tkRes2 = await fetch(`${SERVER_URL}/api/chzzk/chat-token?chatChannelId=${encodeURIComponent(chatChannelId)}`);
-        if (!tkRes2.ok) return;
-        const tkData = await tkRes2.json();
+        const tkRes = await fetch(`${SERVER_URL}/api/chzzk/chat-token?chatChannelId=${encodeURIComponent(chatChannelId)}`);
+        if (!tkRes.ok) return;
+        const tkData = await tkRes.json();
         accessToken = tkData.accessToken;
       } catch {
         return;
       }
-
       if (!alive) return;
 
-      // WebSocket 연결 (첫 번째 응답 서버 사용)
       let ws: WebSocket | null = null;
       for (const url of WS_SERVERS) {
         try { ws = await connectWs(url); break; } catch { /* try next */ }
       }
       if (!ws || !alive) { ws?.close(); return; }
-
       wsRef.current = ws;
 
-      // onopen은 connectWs 안에서 이미 fire됐으므로 바로 send
       ws.send(JSON.stringify({
         bdy: { accTkn: accessToken, auth: "READ", devType: 2001, uid: null },
         cmd: 100,
@@ -130,22 +170,37 @@ export default function ChatOverlay({ channelId, gameType }: { channelId: string
         if (data.cmd === 93101) {
           const items: any[] = Array.isArray(data.bdy) ? data.bdy : [];
           for (const item of items) {
-            if (item.msgStatusType !== "NORMAL") continue;
-            if (item.msgTypeCode !== 1) continue;
+            if (item.msgStatusType !== "NORMAL" || item.msgTypeCode !== 1) continue;
 
-            let nickname = "";
-            try { nickname = JSON.parse(item.profile).nickname ?? ""; } catch { }
+            let profile: any = {};
+            let extras: any = {};
+            try { profile = JSON.parse(item.profile || "{}"); } catch { }
+            try { extras = JSON.parse(item.extras || "{}"); } catch { }
+
+            const nickname: string = profile.nickname ?? "";
             if (!nickname) continue;
 
-            const msg = item.msg as string;
+            const userRoleCode: string = profile.userRoleCode ?? "common_user";
+            const colorCode: string | undefined = profile.streamingProperty?.nicknameColor?.colorCode;
+            const nicknameColor = resolveNicknameColor(colorCode, userRoleCode);
+            const roleBadgeUrl = ROLE_BADGE_URL[userRoleCode] ?? null;
+
+            const viewerBadges: ChzzkBadge[] = (profile.viewerBadges ?? [])
+              .map((vb: any) => ({ imageUrl: vb.badge?.imageUrl ?? "" }))
+              .filter((b: ChzzkBadge) => b.imageUrl);
+
+            const emojis: Record<string, string> = extras.emojis ?? {};
             const id = `${item.ctime}-${item.uid}-${Math.random()}`;
 
             const { tier, rank } = await fetchTier(nickname);
-
             if (!alive) return;
+
             setMessages((prev) => {
-              const next = [...prev, { id, nickname, msg, tier, rank }];
-              return next.slice(-50); // 최대 50개 유지
+              const next = [...prev, {
+                id, nickname, nicknameColor, roleBadgeUrl, viewerBadges,
+                msg: item.msg, emojis, tier, rank,
+              }];
+              return next.slice(-50);
             });
           }
         }
@@ -153,46 +208,67 @@ export default function ChatOverlay({ channelId, gameType }: { channelId: string
 
       ws.onclose = () => {
         wsRef.current = null;
-        if (alive) setTimeout(connect, 3000); // 재연결
+        if (alive) setTimeout(connect, 3000);
       };
     }
 
     connect();
-
     return () => {
       alive = false;
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [channelId, gameType]);
+  }, [channelId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   return (
-    <div style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: 4,
-      padding: "4px 0",
-      fontFamily: "Pretendard, sans-serif",
-    }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+        padding: "4px 0",
+        fontFamily: "Pretendard, sans-serif",
+        fontSize: 13,
+        lineHeight: 1.5,
+      }}
+    >
       {messages.map((m) => (
-        <div
-          key={m.id}
-          className="animate-chat-in"
-          style={{ fontSize: 13, lineHeight: 1.4, wordBreak: "break-all" }}
-        >
+        <div key={m.id} style={{ wordBreak: "break-all", padding: "2px 0" }}>
+          {/* 역할 뱃지 (스트리머/매니저) */}
+          {m.roleBadgeUrl && (
+            <img
+              src={m.roleBadgeUrl}
+              alt=""
+              width={16}
+              height={16}
+              style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }}
+            />
+          )}
+          {/* 치지직 뷰어 뱃지 */}
+          {m.viewerBadges.map((b, i) => (
+            <img
+              key={i}
+              src={b.imageUrl}
+              alt=""
+              width={16}
+              height={16}
+              style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }}
+            />
+          ))}
+          {/* 티어 뱃지 (익스텐션) */}
           {m.tier && <TierBadge tier={m.tier} rank={m.rank} />}
-          <span
-            className="text-shadow-chat"
-            style={{ fontWeight: 700, color: "#e0e0e0", marginRight: 4 }}
-          >
+          {/* 닉네임 */}
+          <span style={{ fontWeight: 700, color: m.nicknameColor, marginRight: 2 }}>
             {m.nickname}
           </span>
-          <span className="text-shadow-chat" style={{ color: "#ffffff" }}>
-            {m.msg}
+          <span style={{ color: "rgba(255,255,255,0.4)", marginRight: 4 }}>:</span>
+          {/* 메시지 */}
+          <span style={{ color: "#ffffff" }}>
+            <MessageContent msg={m.msg} emojis={m.emojis} />
           </span>
         </div>
       ))}

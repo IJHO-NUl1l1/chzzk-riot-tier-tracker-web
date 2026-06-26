@@ -216,7 +216,7 @@ export default function OverlayPage() {
     >
       {mode === "list" && <BadgeList viewers={viewers} gameType={gameType} />}
       {mode === "stats" && <TierStats viewers={viewers} gameType={gameType} />}
-      {mode === "chat" && <ChatOverlay channelId={liveId} gameType={gameType} />}
+      {mode === "chat" && <ChatOverlay channelId={liveId} />}
     </div>
   );
 }
