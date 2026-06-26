@@ -137,6 +137,8 @@ interface ChatMessage {
   msg: string;
   emojis: Record<string, string>;
   tierEntries: TierEntry[];
+  createdAt: number;
+  fading?: boolean;
 }
 
 interface TierCacheEntry {
@@ -215,7 +217,21 @@ async function connectWs(url: string): Promise<WebSocket> {
   });
 }
 
-export default function ChatOverlay({ channelId }: { channelId: string }) {
+const OVERLAY_STYLES = `
+  @keyframes crtt-fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+`;
+
+interface ChatOverlayProps {
+  channelId: string;
+  maxLines?: number;
+  ttl?: number;
+  tierOnly?: boolean;
+}
+
+export default function ChatOverlay({ channelId, maxLines = 20, ttl = 60, tierOnly = false }: ChatOverlayProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const tierCacheRef = useRef<Record<string, TierCacheEntry | null>>({});
   const wsRef = useRef<WebSocket | null>(null);
@@ -244,6 +260,23 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
       return [];
     }
   }
+
+  // 메시지 자동 만료 (ttl초 후 fade-out → 제거)
+  useEffect(() => {
+    if (ttl <= 0) return;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setMessages((prev) => {
+        const next = prev.map((m) =>
+          !m.fading && now >= m.createdAt + (ttl - 0.8) * 1000
+            ? { ...m, fading: true }
+            : m
+        );
+        return next.filter((m) => now < m.createdAt + ttl * 1000);
+      });
+    }, 400);
+    return () => clearInterval(timer);
+  }, [ttl]);
 
   useEffect(() => {
     let alive = true;
@@ -318,23 +351,26 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
 
             const emojis: Record<string, string> = extras.emojis ?? {};
             const id = `${item.ctime}-${item.uid}-${Math.random()}`;
+            const createdAt = Date.now();
+            const base = {
+              id, nickname, nicknameColor, roleBadgeUrl, subBadgeUrl,
+              viewerBadges, msg: item.msg, emojis, createdAt,
+            };
 
-            // 메시지 즉시 렌더 (tierEntries 빈 배열로)
-            setMessages((prev) => {
-              const next = [...prev, {
-                id, nickname, nicknameColor, roleBadgeUrl, subBadgeUrl, viewerBadges,
-                msg: item.msg, emojis, tierEntries: [],
-              }];
-              return next.slice(-50);
-            });
-
-            // 티어는 백그라운드에서 조회 후 해당 메시지만 업데이트
-            fetchTierEntries(nickname).then((tierEntries) => {
-              if (!alive || tierEntries.length === 0) return;
-              setMessages((prev) =>
-                prev.map((m) => m.id === id ? { ...m, tierEntries } : m)
-              );
-            });
+            if (tierOnly) {
+              // tierOnly: 티어 확인 후 있을 때만 추가
+              fetchTierEntries(nickname).then((tierEntries) => {
+                if (!alive || tierEntries.length === 0) return;
+                setMessages((prev) => [...prev, { ...base, tierEntries }].slice(-maxLines));
+              });
+            } else {
+              // 즉시 렌더 후 티어 백그라운드 업데이트
+              setMessages((prev) => [...prev, { ...base, tierEntries: [] }].slice(-maxLines));
+              fetchTierEntries(nickname).then((tierEntries) => {
+                if (!alive || tierEntries.length === 0) return;
+                setMessages((prev) => prev.map((m) => m.id === id ? { ...m, tierEntries } : m));
+              });
+            }
           }
         }
       };
@@ -466,52 +502,65 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
   }, [channelId]);
 
   return (
-    <div
-      style={{
-        height: "100vh",
-        width: "100%",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "flex-end",
-        gap: 2,
-        padding: "4px 8px",
-        boxSizing: "border-box",
-        fontFamily: "Pretendard, sans-serif",
-        fontSize: 13,
-        lineHeight: 1.5,
-      }}
-    >
-      {messages.map((m) => (
-        <div key={m.id} style={{ wordBreak: "break-all", padding: "2px 0" }}>
-          {/* 티어 뱃지 (익스텐션) — 맨 앞, 공개된 게임 수만큼 표시 */}
-          {m.tierEntries.map((e) => (
-            <TierBadge key={e.game_type} tier={e.tier} />
-          ))}
-          {/* 역할 뱃지 (스트리머/매니저) */}
-          {m.roleBadgeUrl && (
-            <img src={m.roleBadgeUrl} alt="" width={16} height={16}
-              style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
-          )}
-          {/* 구독 뱃지 */}
-          {m.subBadgeUrl && (
-            <img src={m.subBadgeUrl} alt="" width={16} height={16}
-              style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
-          )}
-          {/* 치지직 뷰어 뱃지 */}
-          {m.viewerBadges.map((b, i) => (
-            <img key={i} src={b.imageUrl} alt="" width={16} height={16}
-              style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
-          ))}
-          {/* 닉네임 (색상/그라데이션) */}
-          <NicknameSpan color={m.nicknameColor}>{m.nickname}</NicknameSpan>
-          <span style={{ color: "rgba(255,255,255,0.4)", marginRight: 4 }}>:</span>
-          {/* 메시지 */}
-          <span style={{ color: "#ffffff" }}>
-            <MessageContent msg={m.msg} emojis={m.emojis} />
-          </span>
-        </div>
-      ))}
-    </div>
+    <>
+      <style>{OVERLAY_STYLES}</style>
+      <div
+        style={{
+          height: "100vh",
+          width: "100%",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "flex-end",
+          gap: 2,
+          padding: "4px 8px",
+          boxSizing: "border-box",
+          fontFamily: "Pretendard, sans-serif",
+          fontSize: 13,
+          lineHeight: 1.5,
+        }}
+      >
+        {messages.map((m) => (
+          <div
+            key={m.id}
+            style={{
+              wordBreak: "break-all",
+              padding: "2px 0",
+              textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)",
+              animation: "crtt-fadeIn 0.2s ease-out both",
+              opacity: m.fading ? 0 : 1,
+              transition: m.fading ? "opacity 0.7s ease" : undefined,
+            }}
+          >
+            {/* 티어 뱃지 — 맨 앞 */}
+            {m.tierEntries.map((e) => (
+              <TierBadge key={e.game_type} tier={e.tier} />
+            ))}
+            {/* 역할 뱃지 */}
+            {m.roleBadgeUrl && (
+              <img src={m.roleBadgeUrl} alt="" width={16} height={16}
+                style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
+            )}
+            {/* 구독 뱃지 */}
+            {m.subBadgeUrl && (
+              <img src={m.subBadgeUrl} alt="" width={16} height={16}
+                style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
+            )}
+            {/* 뷰어 뱃지 */}
+            {m.viewerBadges.map((b, i) => (
+              <img key={i} src={b.imageUrl} alt="" width={16} height={16}
+                style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
+            ))}
+            {/* 닉네임 */}
+            <NicknameSpan color={m.nicknameColor}>{m.nickname}</NicknameSpan>
+            <span style={{ color: "rgba(255,255,255,0.4)", marginRight: 4 }}>:</span>
+            {/* 메시지 */}
+            <span style={{ color: "#ffffff" }}>
+              <MessageContent msg={m.msg} emojis={m.emojis} />
+            </span>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

@@ -206,7 +206,10 @@ export default function OverlayPage() {
   }, [liveId]);
 
   if (mode === "chat") {
-    return <ChatOverlay channelId={liveId} />;
+    const maxLines = Math.max(1, Math.min(50, parseInt(searchParams.get("lines") ?? "20", 10) || 20));
+    const ttl      = Math.max(0, parseInt(searchParams.get("ttl") ?? "60", 10) || 60);
+    const tierOnly = searchParams.get("tierOnly") === "true";
+    return <ChatOverlay channelId={liveId} maxLines={maxLines} ttl={ttl} tierOnly={tierOnly} />;
   }
 
   return (
