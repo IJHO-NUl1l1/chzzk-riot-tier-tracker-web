@@ -218,7 +218,6 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const tierCacheRef = useRef<Record<string, TierCacheEntry | null>>({});
   const wsRef = useRef<WebSocket | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
   const chatChannelIdRef = useRef<string>("");
 
   async function fetchTier(nickname: string): Promise<{ tier: string | null; rank: string | null }> {
@@ -345,17 +344,18 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
     };
   }, [channelId]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
   return (
     <div
       style={{
+        height: "100vh",
+        width: "100%",
+        overflow: "hidden",
         display: "flex",
         flexDirection: "column",
+        justifyContent: "flex-end",
         gap: 2,
-        padding: "4px 0",
+        padding: "4px 8px",
+        boxSizing: "border-box",
         fontFamily: "Pretendard, sans-serif",
         fontSize: 13,
         lineHeight: 1.5,
@@ -389,7 +389,6 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
           </span>
         </div>
       ))}
-      <div ref={bottomRef} />
     </div>
   );
 }

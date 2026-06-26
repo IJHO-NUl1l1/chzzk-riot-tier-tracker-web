@@ -205,18 +205,21 @@ export default function OverlayPage() {
     };
   }, [liveId]);
 
+  if (mode === "chat") {
+    return <ChatOverlay channelId={liveId} />;
+  }
+
   return (
     <div
       className="p-3"
       style={{
-        background: mode === "chat" ? "#000" : "transparent",
+        background: "transparent",
         width: "fit-content",
         fontFamily: "Pretendard, sans-serif",
       }}
     >
       {mode === "list" && <BadgeList viewers={viewers} gameType={gameType} />}
       {mode === "stats" && <TierStats viewers={viewers} gameType={gameType} />}
-      {mode === "chat" && <ChatOverlay channelId={liveId} />}
     </div>
   );
 }
