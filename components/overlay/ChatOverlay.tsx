@@ -113,15 +113,14 @@ export default function ChatOverlay({ channelId, gameType }: { channelId: string
 
       wsRef.current = ws;
 
-      ws.onopen = () => {
-        ws!.send(JSON.stringify({
-          bdy: { accTkn: accessToken, auth: "READ", devType: 2001, uid: null },
-          cmd: 100,
-          cid: chatChannelId,
-          svcid: "game",
-          ver: "2",
-        }));
-      };
+      // onopen은 connectWs 안에서 이미 fire됐으므로 바로 send
+      ws.send(JSON.stringify({
+        bdy: { accTkn: accessToken, auth: "READ", devType: 2001, uid: null },
+        cmd: 100,
+        cid: chatChannelId,
+        svcid: "game",
+        ver: "2",
+      }));
 
       ws.onmessage = async (e) => {
         if (!alive) return;
