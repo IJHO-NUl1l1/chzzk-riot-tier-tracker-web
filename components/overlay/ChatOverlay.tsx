@@ -26,6 +26,7 @@ interface ChatMessage {
   nickname: string;
   nicknameColor: string;
   roleBadgeUrl: string | null;
+  subBadgeUrl: string | null;
   viewerBadges: ChzzkBadge[];
   msg: string;
   emojis: Record<string, string>;
@@ -41,10 +42,10 @@ interface TierCacheEntry {
 
 function resolveNicknameColor(colorCode: string | undefined | null, userRoleCode: string): string {
   if (ROLE_NICKNAME_COLOR[userRoleCode]) return ROLE_NICKNAME_COLOR[userRoleCode];
-  if (!colorCode) return "#FFFFFF";
-  // Chzzk stores hex without '#', 5-char codes get a leading 0 to form 6-char hex
-  const hex = colorCode.length === 5 ? `0${colorCode}` : colorCode;
-  return `#${hex}`;
+  if (!colorCode || colorCode === "CC000") return "#FFFFFF";
+  // 6자리 hex: #RRGGBB, 3자리: #RGB, 나머지는 기본값
+  if (colorCode.length === 6 || colorCode.length === 3) return `#${colorCode}`;
+  return "#FFFFFF";
 }
 
 function TierBadge({ tier, rank }: { tier: string; rank?: string | null }) {
@@ -185,6 +186,9 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
             const nicknameColor = resolveNicknameColor(colorCode, userRoleCode);
             const roleBadgeUrl = ROLE_BADGE_URL[userRoleCode] ?? null;
 
+            // 구독 뱃지: streamingProperty.subscription.badge (viewerBadges에 포함 안 됨)
+            const subBadgeUrl: string | null = profile.streamingProperty?.subscription?.badge?.imageUrl ?? null;
+
             const viewerBadges: ChzzkBadge[] = (profile.viewerBadges ?? [])
               .map((vb: any) => ({ imageUrl: vb.badge?.imageUrl ?? "" }))
               .filter((b: ChzzkBadge) => b.imageUrl);
@@ -197,7 +201,7 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
 
             setMessages((prev) => {
               const next = [...prev, {
-                id, nickname, nicknameColor, roleBadgeUrl, viewerBadges,
+                id, nickname, nicknameColor, roleBadgeUrl, subBadgeUrl, viewerBadges,
                 msg: item.msg, emojis, tier, rank,
               }];
               return next.slice(-50);
@@ -242,6 +246,16 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
           {m.roleBadgeUrl && (
             <img
               src={m.roleBadgeUrl}
+              alt=""
+              width={16}
+              height={16}
+              style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }}
+            />
+          )}
+          {/* 구독 뱃지 (streamingProperty.subscription.badge) */}
+          {m.subBadgeUrl && (
+            <img
+              src={m.subBadgeUrl}
               alt=""
               width={16}
               height={16}
