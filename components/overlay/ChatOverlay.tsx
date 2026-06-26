@@ -144,18 +144,14 @@ interface TierCacheEntry {
   fetchedAt: number;
 }
 
-function TierBadge({ tier, rank }: { tier: string; rank?: string | null }) {
+function TierBadge({ tier }: { tier: string }) {
   const upper = tier.toUpperCase();
-  const color = TIER_COLORS[upper] ?? "#888";
   const imgName = TIER_IMG_MAP[upper];
   const imgUrl = imgName ? `/images/RankedEmblemsLatest/Rank=${imgName}.png` : null;
+  if (!imgUrl) return null;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 2, marginRight: 4, verticalAlign: "middle" }}>
-      {imgUrl && <img src={imgUrl} alt={tier} width={16} height={16} style={{ display: "block" }} />}
-      <span style={{ fontSize: 11, fontWeight: 700, color, lineHeight: 1 }}>
-        {upper}{rank ? ` ${rank}` : ""}
-      </span>
-    </span>
+    <img src={imgUrl} alt={upper} width={22} height={22}
+      style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
   );
 }
 
@@ -482,6 +478,10 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
     >
       {messages.map((m) => (
         <div key={m.id} style={{ wordBreak: "break-all", padding: "2px 0" }}>
+          {/* 티어 뱃지 (익스텐션) — 맨 앞, 공개된 게임 수만큼 표시 */}
+          {m.tierEntries.map((e) => (
+            <TierBadge key={e.game_type} tier={e.tier} />
+          ))}
           {/* 역할 뱃지 (스트리머/매니저) */}
           {m.roleBadgeUrl && (
             <img src={m.roleBadgeUrl} alt="" width={16} height={16}
@@ -496,10 +496,6 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
           {m.viewerBadges.map((b, i) => (
             <img key={i} src={b.imageUrl} alt="" width={16} height={16}
               style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
-          ))}
-          {/* 티어 뱃지 (익스텐션) — 공개된 게임 수만큼 표시 */}
-          {m.tierEntries.map((e) => (
-            <TierBadge key={e.game_type} tier={e.tier} rank={e.rank} />
           ))}
           {/* 닉네임 (색상/그라데이션) */}
           <NicknameSpan color={m.nicknameColor}>{m.nickname}</NicknameSpan>
