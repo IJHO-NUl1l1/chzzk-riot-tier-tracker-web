@@ -319,15 +319,21 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
             const emojis: Record<string, string> = extras.emojis ?? {};
             const id = `${item.ctime}-${item.uid}-${Math.random()}`;
 
-            const tierEntries = await fetchTierEntries(nickname);
-            if (!alive) return;
-
+            // 메시지 즉시 렌더 (tierEntries 빈 배열로)
             setMessages((prev) => {
               const next = [...prev, {
                 id, nickname, nicknameColor, roleBadgeUrl, subBadgeUrl, viewerBadges,
-                msg: item.msg, emojis, tierEntries,
+                msg: item.msg, emojis, tierEntries: [],
               }];
               return next.slice(-50);
+            });
+
+            // 티어는 백그라운드에서 조회 후 해당 메시지만 업데이트
+            fetchTierEntries(nickname).then((tierEntries) => {
+              if (!alive || tierEntries.length === 0) return;
+              setMessages((prev) =>
+                prev.map((m) => m.id === id ? { ...m, tierEntries } : m)
+              );
             });
           }
         }
