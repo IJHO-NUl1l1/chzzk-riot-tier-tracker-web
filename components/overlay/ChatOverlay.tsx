@@ -121,6 +121,12 @@ interface ChzzkBadge {
   imageUrl: string;
 }
 
+interface TierEntry {
+  game_type: string;
+  tier: string;
+  rank: string | null;
+}
+
 interface ChatMessage {
   id: string;
   nickname: string;
@@ -130,13 +136,11 @@ interface ChatMessage {
   viewerBadges: ChzzkBadge[];
   msg: string;
   emojis: Record<string, string>;
-  tier?: string | null;
-  rank?: string | null;
+  tierEntries: TierEntry[];
 }
 
 interface TierCacheEntry {
-  tier: string | null;
-  rank: string | null;
+  entries: TierEntry[];
   fetchedAt: number;
 }
 
@@ -221,25 +225,27 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
   const wsRef = useRef<WebSocket | null>(null);
   const chatChannelIdRef = useRef<string>("");
 
-  async function fetchTier(nickname: string): Promise<{ tier: string | null; rank: string | null }> {
+  async function fetchTierEntries(nickname: string): Promise<TierEntry[]> {
     const cache = tierCacheRef.current[nickname];
     if (cache !== undefined) {
       if (cache === null || Date.now() - cache.fetchedAt < TIER_CACHE_TTL) {
-        return cache ?? { tier: null, rank: null };
+        return cache?.entries ?? [];
       }
     }
     try {
       const res = await fetch(`${SERVER_URL}/api/tier?chzzk_name=${encodeURIComponent(nickname)}`);
-      if (!res.ok) { tierCacheRef.current[nickname] = null; return { tier: null, rank: null }; }
+      if (!res.ok) { tierCacheRef.current[nickname] = null; return []; }
       const json = await res.json();
-      const entries: any[] = json.entries ?? [];
-      const entry = entries[0];
-      const result = entry ? { tier: entry.tier, rank: entry.rank ?? null } : { tier: null, rank: null };
-      tierCacheRef.current[nickname] = { ...result, fetchedAt: Date.now() };
-      return result;
+      const entries: TierEntry[] = (json.entries ?? []).map((e: any) => ({
+        game_type: e.game_type,
+        tier: e.tier,
+        rank: e.rank ?? null,
+      }));
+      tierCacheRef.current[nickname] = { entries, fetchedAt: Date.now() };
+      return entries;
     } catch {
       tierCacheRef.current[nickname] = null;
-      return { tier: null, rank: null };
+      return [];
     }
   }
 
@@ -317,13 +323,13 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
             const emojis: Record<string, string> = extras.emojis ?? {};
             const id = `${item.ctime}-${item.uid}-${Math.random()}`;
 
-            const { tier, rank } = await fetchTier(nickname);
+            const tierEntries = await fetchTierEntries(nickname);
             if (!alive) return;
 
             setMessages((prev) => {
               const next = [...prev, {
                 id, nickname, nicknameColor, roleBadgeUrl, subBadgeUrl, viewerBadges,
-                msg: item.msg, emojis, tier, rank,
+                msg: item.msg, emojis, tierEntries,
               }];
               return next.slice(-50);
             });
@@ -353,8 +359,9 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
 
     channel
       .on("broadcast", { event: "tier_updated" }, ({ payload }) => {
-        const { chzzkChannelName, tier, rank, isPublic } = payload as {
+        const { chzzkChannelName, gameType, tier, rank, isPublic } = payload as {
           chzzkChannelName: string;
+          gameType: string;
           tier: string | null;
           rank: string | null;
           isPublic: boolean;
@@ -362,48 +369,88 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
         if (!chzzkChannelName) return;
         const key = chzzkChannelName.toLowerCase();
 
-        // 비공개면 캐시에서 제거 후 메시지 뱃지 숨김
-        if (!isPublic || !tier) {
-          tierCacheRef.current[chzzkChannelName] = null;
-          setMessages((prev) =>
-            prev.map((m) => m.nickname.toLowerCase() === key ? { ...m, tier: null, rank: null } : m)
-          );
-          return;
+        const updateEntries = (prev: TierEntry[]): TierEntry[] => {
+          const filtered = prev.filter((e) => e.game_type !== gameType);
+          if (isPublic && tier) filtered.push({ game_type: gameType, tier, rank: rank ?? null });
+          return filtered;
+        };
+
+        // 캐시 갱신
+        const cached = tierCacheRef.current[chzzkChannelName];
+        if (cached) {
+          tierCacheRef.current[chzzkChannelName] = {
+            entries: updateEntries(cached.entries),
+            fetchedAt: Date.now(),
+          };
+        } else {
+          delete tierCacheRef.current[chzzkChannelName];
         }
 
-        // 캐시 갱신 (게임 타입 구분 없이 가장 최신 정보로 덮어씀)
-        tierCacheRef.current[chzzkChannelName] = { tier, rank: rank ?? null, fetchedAt: Date.now() };
-
-        // 화면에 이미 표시된 메시지 뱃지도 즉시 갱신
         setMessages((prev) =>
-          prev.map((m) => m.nickname.toLowerCase() === key ? { ...m, tier, rank: rank ?? null } : m)
+          prev.map((m) =>
+            m.nickname.toLowerCase() === key
+              ? { ...m, tierEntries: updateEntries(m.tierEntries) }
+              : m
+          )
         );
       })
       .on("broadcast", { event: "tier_deleted" }, ({ payload }) => {
-        const { chzzkChannelName } = payload as { chzzkChannelName: string };
+        const { chzzkChannelName, gameType } = payload as {
+          chzzkChannelName: string;
+          gameType: string | null;
+        };
         if (!chzzkChannelName) return;
         const key = chzzkChannelName.toLowerCase();
 
-        tierCacheRef.current[chzzkChannelName] = null;
+        const removeEntries = (prev: TierEntry[]): TierEntry[] =>
+          gameType ? prev.filter((e) => e.game_type !== gameType) : [];
+
+        const cached = tierCacheRef.current[chzzkChannelName];
+        if (cached) {
+          tierCacheRef.current[chzzkChannelName] = {
+            entries: removeEntries(cached.entries),
+            fetchedAt: cached.fetchedAt,
+          };
+        }
+
         setMessages((prev) =>
-          prev.map((m) => m.nickname.toLowerCase() === key ? { ...m, tier: null, rank: null } : m)
+          prev.map((m) =>
+            m.nickname.toLowerCase() === key
+              ? { ...m, tierEntries: removeEntries(m.tierEntries) }
+              : m
+          )
         );
       })
       .on("broadcast", { event: "privacy_changed" }, ({ payload }) => {
-        const { chzzkChannelName, isPublic } = payload as {
+        const { chzzkChannelName, gameType, isPublic } = payload as {
           chzzkChannelName: string;
+          gameType: string | null;
           isPublic: boolean;
         };
         if (!chzzkChannelName) return;
         const key = chzzkChannelName.toLowerCase();
 
         if (!isPublic) {
-          tierCacheRef.current[chzzkChannelName] = null;
+          // 비공개: 해당 game_type 항목 제거
+          const removeGame = (prev: TierEntry[]): TierEntry[] =>
+            gameType ? prev.filter((e) => e.game_type !== gameType) : [];
+
+          const cached = tierCacheRef.current[chzzkChannelName];
+          if (cached) {
+            tierCacheRef.current[chzzkChannelName] = {
+              entries: removeGame(cached.entries),
+              fetchedAt: cached.fetchedAt,
+            };
+          }
           setMessages((prev) =>
-            prev.map((m) => m.nickname.toLowerCase() === key ? { ...m, tier: null, rank: null } : m)
+            prev.map((m) =>
+              m.nickname.toLowerCase() === key
+                ? { ...m, tierEntries: removeGame(m.tierEntries) }
+                : m
+            )
           );
         } else {
-          // 공개로 전환 → 캐시 만료시켜서 다음 채팅 시 재조회
+          // 공개로 전환 → 캐시 만료 후 다음 채팅 시 재조회
           delete tierCacheRef.current[chzzkChannelName];
         }
       })
@@ -450,8 +497,10 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
             <img key={i} src={b.imageUrl} alt="" width={16} height={16}
               style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
           ))}
-          {/* 티어 뱃지 (익스텐션) */}
-          {m.tier && <TierBadge tier={m.tier} rank={m.rank} />}
+          {/* 티어 뱃지 (익스텐션) — 공개된 게임 수만큼 표시 */}
+          {m.tierEntries.map((e) => (
+            <TierBadge key={e.game_type} tier={e.tier} rank={e.rank} />
+          ))}
           {/* 닉네임 (색상/그라데이션) */}
           <NicknameSpan color={m.nicknameColor}>{m.nickname}</NicknameSpan>
           <span style={{ color: "rgba(255,255,255,0.4)", marginRight: 4 }}>:</span>
