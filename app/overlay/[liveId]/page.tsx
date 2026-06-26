@@ -209,7 +209,7 @@ export default function OverlayPage() {
     <div
       className="p-3"
       style={{
-        background: "transparent",
+        background: mode === "chat" ? "#000" : "transparent",
         width: "fit-content",
         fontFamily: "Pretendard, sans-serif",
       }}

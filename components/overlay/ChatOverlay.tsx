@@ -79,36 +79,41 @@ function getNicknameColor(
   const code = colorCode ?? "";
   const prefix = code.slice(0, 2);
 
-  // CC000 또는 CC 코드인데 맵에 없으면 해시 팔레트
+  // 해시 팔레트 폴백 (colorMap 미로드 시 포함)
+  function hashColor(): string {
+    let hash = 0;
+    for (const c of userIdHash + chatChannelId) hash += c.charCodeAt(0);
+    return HASH_PALETTE_DARK[hash % HASH_PALETTE_DARK.length];
+  }
+
+  // CC000 또는 CC 코드 → 해시 팔레트, CC001~은 runtimeColorMap 조회
   if (!code || prefix === "CC") {
     const entry = runtimeColorMap[code];
     if (entry && code !== "CC000") return { solid: entry.dark };
-    // 해시 계산: userIdHash + chatChannelId charCode 합산
-    let hash = 0;
-    for (const c of userIdHash + chatChannelId) hash += c.charCodeAt(0);
-    return { solid: HASH_PALETTE_DARK[hash % HASH_PALETTE_DARK.length] };
+    return { solid: hashColor() };
   }
 
-  // CD: 구독 고정색
-  if (prefix === "CD") return { solid: CD_COLOR_MAP[code] ?? "#FFFFFF" };
+  // CD: 구독 고정색 (맵에 없으면 해시)
+  if (prefix === "CD") return { solid: CD_COLOR_MAP[code] ?? hashColor() };
 
-  // SG: tier2 그라데이션
+  // SG: tier2 그라데이션 (맵 미로드 시 해시로 폴백)
   if (prefix === "SG") {
     const entry = runtimeColorMap[code];
     if (entry?.gradient) return { gradient: entry.gradient };
-    return { solid: entry?.dark ?? "#FFFFFF" };
+    return { solid: entry?.dark ?? hashColor() };
   }
 
-  // SH: tier2 하이라이트 (solid color로 표현)
+  // SH: tier2 하이라이트 (맵 미로드 시 해시로 폴백)
   if (prefix === "SH") {
     const entry = runtimeColorMap[code];
-    return { solid: entry?.dark ?? "#FFFFFF" };
+    return { solid: entry?.dark ?? hashColor() };
   }
 
   // SS: tier2 스텔스 (투명)
   if (prefix === "SS") return { solid: "transparent" };
 
-  return { solid: "#FFFFFF" };
+  // 알 수 없는 prefix → 해시
+  return { solid: hashColor() };
 }
 
 interface ChzzkBadge {
