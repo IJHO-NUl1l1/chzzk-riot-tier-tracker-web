@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import BadgeList from "@/components/overlay/BadgeList";
 import TierStats from "@/components/overlay/TierStats";
+import ChatOverlay from "@/components/overlay/ChatOverlay";
 import { DEFAULT_GAME_TYPE, type GameType } from "@/components/overlay/tierConstants";
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
@@ -215,6 +216,7 @@ export default function OverlayPage() {
     >
       {mode === "list" && <BadgeList viewers={viewers} gameType={gameType} />}
       {mode === "stats" && <TierStats viewers={viewers} gameType={gameType} />}
+      {mode === "chat" && <ChatOverlay channelId={liveId} gameType={gameType} />}
     </div>
   );
 }
