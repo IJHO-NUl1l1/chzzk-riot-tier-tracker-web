@@ -6,6 +6,7 @@ import { TIER_COLORS, TIER_IMG_MAP } from "./tierConstants";
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
 const WS_SERVERS = Array.from({ length: 20 }, (_, i) => `wss://kr-ss${i + 1}.chat.naver.com/chat`);
 const TIER_CACHE_TTL = 5 * 60 * 1000;
+const CHZZK_COLOR_API = `${process.env.NEXT_PUBLIC_SERVER_URL}/api/chzzk/nickname-color-codes`;
 
 const ROLE_BADGE_URL: Record<string, string> = {
   streamer: "https://ssl.pstatic.net/static/nng/glive/badge/streamer.png",
@@ -17,6 +18,99 @@ const ROLE_NICKNAME_COLOR: Record<string, string> = {
   manager: "#59E0A3",
 };
 
+// CC000 없을 때 userIdHash + chatChannelId 해시로 선택하는 40색 팔레트 (dark mode)
+// 치지직 JS 번들에서 추출한 값
+const HASH_PALETTE_DARK = [
+  "#EEA05D","#EAA35F","#E98158","#E97F58","#E76D53","#E66D5F","#E16490","#E481AE",
+  "#E481AE","#D25FAC","#D263AE","#D66CB4","#D071B6","#AF71B5","#A96BB2","#905FAA",
+  "#B38BC2","#9D78B8","#8D7AB8","#7F68AE","#9F99C8","#717DC6","#7E8BC2","#5A90C0",
+  "#628DCC","#81A1CA","#ADD2DE","#83C5D6","#8BC8CB","#91CBC6","#83C3BB","#7DBFB2",
+  "#AAD6C2","#84C194","#92C896","#94C994","#9FCE8E","#A6D293","#ABD373","#BFDE73",
+];
+
+// CD001~CD040: 구독 고정색 (JS번들 ih 오브젝트, dark mode)
+const CD_COLOR_MAP: Record<string, string> = {
+  CD001:"#EEA05D",CD002:"#EAA35F",CD003:"#E98158",CD004:"#E97F58",CD005:"#E76D53",
+  CD006:"#E66D5F",CD007:"#E16490",CD008:"#E481AE",CD009:"#E481AE",CD010:"#D25FAC",
+  CD011:"#D263AE",CD012:"#D66CB4",CD013:"#D071B6",CD014:"#AF71B5",CD015:"#A96BB2",
+  CD016:"#905FAA",CD017:"#B38BC2",CD018:"#9D78B8",CD019:"#8D7AB8",CD020:"#7F68AE",
+  CD021:"#9F99C8",CD022:"#717DC6",CD023:"#7E8BC2",CD024:"#5A90C0",CD025:"#628DCC",
+  CD026:"#81A1CA",CD027:"#ADD2DE",CD028:"#83C5D6",CD029:"#8BC8CB",CD030:"#91CBC6",
+  CD031:"#83C3BB",CD032:"#7DBFB2",CD033:"#AAD6C2",CD034:"#84C194",CD035:"#92C896",
+  CD036:"#94C994",CD037:"#9FCE8E",CD038:"#A6D293",CD039:"#ABD373",CD040:"#BFDE73",
+};
+
+interface NicknameColor {
+  solid?: string;
+  gradient?: { start: string; end: string };
+}
+
+// CC/SG/SH/SS 코드 런타임 맵 (API에서 가져옴)
+let runtimeColorMap: Record<string, { dark: string; gradient?: { start: string; end: string } }> = {};
+let colorMapLoaded = false;
+
+async function loadColorMap() {
+  if (colorMapLoaded) return;
+  try {
+    const res = await fetch(CHZZK_COLOR_API);
+    const data = await res.json();
+    const list: any[] = data?.content?.codeList ?? [];
+    list.forEach((c) => {
+      runtimeColorMap[c.code] = {
+        dark: c.darkRgbValue,
+        gradient: c.effectType === "GRADATION" && c.effectValue
+          ? { start: c.darkRgbValue, end: c.effectValue.darkRgbEndValue }
+          : undefined,
+      };
+    });
+    colorMapLoaded = true;
+  } catch { /* 실패시 그냥 해시 팔레트로 폴백 */ }
+}
+
+function getNicknameColor(
+  colorCode: string | undefined | null,
+  userIdHash: string,
+  chatChannelId: string,
+  userRoleCode: string,
+): NicknameColor {
+  // 역할 색 우선
+  if (ROLE_NICKNAME_COLOR[userRoleCode]) return { solid: ROLE_NICKNAME_COLOR[userRoleCode] };
+
+  const code = colorCode ?? "";
+  const prefix = code.slice(0, 2);
+
+  // CC000 또는 CC 코드인데 맵에 없으면 해시 팔레트
+  if (!code || prefix === "CC") {
+    const entry = runtimeColorMap[code];
+    if (entry && code !== "CC000") return { solid: entry.dark };
+    // 해시 계산: userIdHash + chatChannelId charCode 합산
+    let hash = 0;
+    for (const c of userIdHash + chatChannelId) hash += c.charCodeAt(0);
+    return { solid: HASH_PALETTE_DARK[hash % HASH_PALETTE_DARK.length] };
+  }
+
+  // CD: 구독 고정색
+  if (prefix === "CD") return { solid: CD_COLOR_MAP[code] ?? "#FFFFFF" };
+
+  // SG: tier2 그라데이션
+  if (prefix === "SG") {
+    const entry = runtimeColorMap[code];
+    if (entry?.gradient) return { gradient: entry.gradient };
+    return { solid: entry?.dark ?? "#FFFFFF" };
+  }
+
+  // SH: tier2 하이라이트 (solid color로 표현)
+  if (prefix === "SH") {
+    const entry = runtimeColorMap[code];
+    return { solid: entry?.dark ?? "#FFFFFF" };
+  }
+
+  // SS: tier2 스텔스 (투명)
+  if (prefix === "SS") return { solid: "transparent" };
+
+  return { solid: "#FFFFFF" };
+}
+
 interface ChzzkBadge {
   imageUrl: string;
 }
@@ -24,7 +118,7 @@ interface ChzzkBadge {
 interface ChatMessage {
   id: string;
   nickname: string;
-  nicknameColor: string;
+  nicknameColor: NicknameColor;
   roleBadgeUrl: string | null;
   subBadgeUrl: string | null;
   viewerBadges: ChzzkBadge[];
@@ -40,14 +134,6 @@ interface TierCacheEntry {
   fetchedAt: number;
 }
 
-function resolveNicknameColor(colorCode: string | undefined | null, userRoleCode: string): string {
-  if (ROLE_NICKNAME_COLOR[userRoleCode]) return ROLE_NICKNAME_COLOR[userRoleCode];
-  if (!colorCode || colorCode === "CC000") return "#FFFFFF";
-  // 6자리 hex: #RRGGBB, 3자리: #RGB, 나머지는 기본값
-  if (colorCode.length === 6 || colorCode.length === 3) return `#${colorCode}`;
-  return "#FFFFFF";
-}
-
 function TierBadge({ tier, rank }: { tier: string; rank?: string | null }) {
   const upper = tier.toUpperCase();
   const color = TIER_COLORS[upper] ?? "#888";
@@ -59,6 +145,30 @@ function TierBadge({ tier, rank }: { tier: string; rank?: string | null }) {
       <span style={{ fontSize: 11, fontWeight: 700, color, lineHeight: 1 }}>
         {upper}{rank ? ` ${rank}` : ""}
       </span>
+    </span>
+  );
+}
+
+function NicknameSpan({ color, children }: { color: NicknameColor; children: React.ReactNode }) {
+  if (color.gradient) {
+    return (
+      <span
+        style={{
+          fontWeight: 700,
+          marginRight: 2,
+          background: `linear-gradient(to right, ${color.gradient.start}, ${color.gradient.end})`,
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+        }}
+      >
+        {children}
+      </span>
+    );
+  }
+  return (
+    <span style={{ fontWeight: 700, color: color.solid ?? "#FFFFFF", marginRight: 2 }}>
+      {children}
     </span>
   );
 }
@@ -104,6 +214,7 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
   const tierCacheRef = useRef<Record<string, TierCacheEntry | null>>({});
   const wsRef = useRef<WebSocket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const chatChannelIdRef = useRef<string>("");
 
   async function fetchTier(nickname: string): Promise<{ tier: string | null; rank: string | null }> {
     const cache = tierCacheRef.current[nickname];
@@ -129,6 +240,7 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
 
   useEffect(() => {
     let alive = true;
+    loadColorMap();
 
     async function connect() {
       let chatChannelId: string;
@@ -138,6 +250,7 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
         if (!chRes.ok) return;
         const chData = await chRes.json();
         chatChannelId = chData.chatChannelId;
+        chatChannelIdRef.current = chatChannelId;
 
         const tkRes = await fetch(`${SERVER_URL}/api/chzzk/chat-token?chatChannelId=${encodeURIComponent(chatChannelId)}`);
         if (!tkRes.ok) return;
@@ -183,12 +296,15 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
 
             const userRoleCode: string = profile.userRoleCode ?? "common_user";
             const colorCode: string | undefined = profile.streamingProperty?.nicknameColor?.colorCode;
-            const nicknameColor = resolveNicknameColor(colorCode, userRoleCode);
+            const nicknameColor = getNicknameColor(
+              colorCode,
+              profile.userIdHash ?? "",
+              chatChannelIdRef.current,
+              userRoleCode,
+            );
+
             const roleBadgeUrl = ROLE_BADGE_URL[userRoleCode] ?? null;
-
-            // 구독 뱃지: streamingProperty.subscription.badge (viewerBadges에 포함 안 됨)
             const subBadgeUrl: string | null = profile.streamingProperty?.subscription?.badge?.imageUrl ?? null;
-
             const viewerBadges: ChzzkBadge[] = (profile.viewerBadges ?? [])
               .map((vb: any) => ({ imageUrl: vb.badge?.imageUrl ?? "" }))
               .filter((b: ChzzkBadge) => b.imageUrl);
@@ -244,41 +360,23 @@ export default function ChatOverlay({ channelId }: { channelId: string }) {
         <div key={m.id} style={{ wordBreak: "break-all", padding: "2px 0" }}>
           {/* 역할 뱃지 (스트리머/매니저) */}
           {m.roleBadgeUrl && (
-            <img
-              src={m.roleBadgeUrl}
-              alt=""
-              width={16}
-              height={16}
-              style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }}
-            />
+            <img src={m.roleBadgeUrl} alt="" width={16} height={16}
+              style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
           )}
-          {/* 구독 뱃지 (streamingProperty.subscription.badge) */}
+          {/* 구독 뱃지 */}
           {m.subBadgeUrl && (
-            <img
-              src={m.subBadgeUrl}
-              alt=""
-              width={16}
-              height={16}
-              style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }}
-            />
+            <img src={m.subBadgeUrl} alt="" width={16} height={16}
+              style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
           )}
           {/* 치지직 뷰어 뱃지 */}
           {m.viewerBadges.map((b, i) => (
-            <img
-              key={i}
-              src={b.imageUrl}
-              alt=""
-              width={16}
-              height={16}
-              style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }}
-            />
+            <img key={i} src={b.imageUrl} alt="" width={16} height={16}
+              style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
           ))}
           {/* 티어 뱃지 (익스텐션) */}
           {m.tier && <TierBadge tier={m.tier} rank={m.rank} />}
-          {/* 닉네임 */}
-          <span style={{ fontWeight: 700, color: m.nicknameColor, marginRight: 2 }}>
-            {m.nickname}
-          </span>
+          {/* 닉네임 (색상/그라데이션) */}
+          <NicknameSpan color={m.nicknameColor}>{m.nickname}</NicknameSpan>
           <span style={{ color: "rgba(255,255,255,0.4)", marginRight: 4 }}>:</span>
           {/* 메시지 */}
           <span style={{ color: "#ffffff" }}>
