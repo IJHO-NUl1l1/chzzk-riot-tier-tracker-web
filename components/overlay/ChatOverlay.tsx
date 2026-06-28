@@ -152,7 +152,7 @@ function TierBadge({ tier }: { tier: string }) {
   const imgUrl = imgName ? `/images/RankedEmblemsLatest/Rank=${imgName}.png` : null;
   if (!imgUrl) return null;
   return (
-    <img src={imgUrl} alt={upper} width={22} height={22}
+    <img src={imgUrl} alt={upper} width={19} height={19}
       style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
   );
 }
@@ -162,12 +162,13 @@ function NicknameSpan({ color, children }: { color: NicknameColor; children: Rea
     return (
       <span
         style={{
-          fontWeight: 700,
+          fontWeight: 500,
           marginRight: 2,
           background: `linear-gradient(to right, ${color.gradient.start}, ${color.gradient.end})`,
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           backgroundClip: "text",
+          filter: "saturate(1.5) brightness(1.0)",
         }}
       >
         {children}
@@ -175,7 +176,7 @@ function NicknameSpan({ color, children }: { color: NicknameColor; children: Rea
     );
   }
   return (
-    <span style={{ fontWeight: 700, color: color.solid ?? "#FFFFFF", marginRight: 2 }}>
+    <span style={{ fontWeight: 500, color: color.solid ?? "#FFFFFF", marginRight: 2, filter: "saturate(1.5) brightness(1.0)" }}>
       {children}
     </span>
   );
@@ -508,6 +509,7 @@ export default function ChatOverlay({ channelId, maxLines = 20, ttl = 60, tierOn
         style={{
           height: "100vh",
           width: "100%",
+          maxWidth: 300,
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -524,9 +526,10 @@ export default function ChatOverlay({ channelId, maxLines = 20, ttl = 60, tierOn
           <div
             key={m.id}
             style={{
-              wordBreak: "break-all",
-              padding: "2px 0",
-              textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)",
+              wordBreak: "break-word",
+              padding: "4px 8px",
+              background: "rgba(0,0,0,0.45)",
+              borderRadius: 8,
               animation: "crtt-fadeIn 0.2s ease-out both",
               opacity: m.fading ? 0 : 1,
               transition: m.fading ? "opacity 0.7s ease" : undefined,
