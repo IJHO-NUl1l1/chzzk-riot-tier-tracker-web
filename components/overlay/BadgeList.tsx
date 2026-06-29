@@ -103,6 +103,7 @@ export default function BadgeList({ viewers, gameType = DEFAULT_GAME_TYPE }: Bad
                   alt={tier}
                   width={TIER_EMBLEM_SIZE}
                   height={TIER_EMBLEM_SIZE}
+                  loading="eager"
                   style={{ flexShrink: 0, filter: `drop-shadow(0 0 4px ${color}90)` }}
                 />
               )}
