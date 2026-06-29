@@ -127,7 +127,7 @@ export function pickBestEntryForGame<T extends GameRankableEntry>(
 // 서로 다른 크기로 보이지 않도록 width를 고정값으로 둔다(fit-content면
 // 내용에 따라 카드 폭이 서로 달라진다).
 export const OVERLAY_CARD_STYLE: CSSProperties = {
-  background: "rgba(18,18,22,0.85)",
+  background: "rgba(18,18,22,0.75)",
   backdropFilter: "blur(10px)",
   WebkitBackdropFilter: "blur(10px)",
   border: "1px solid rgba(255,255,255,0.10)",
