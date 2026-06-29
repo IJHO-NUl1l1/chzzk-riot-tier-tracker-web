@@ -509,7 +509,6 @@ export default function ChatOverlay({ channelId, maxLines = 20, ttl = 60, tierOn
         style={{
           height: "100vh",
           width: "100%",
-          maxWidth: 300,
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -563,6 +562,7 @@ export default function ChatOverlay({ channelId, maxLines = 20, ttl = 60, tierOn
             </span>
           </div>
         ))}
+        <div style={{ flexShrink: 0, height: 4 }} />
       </div>
     </>
   );
