@@ -140,13 +140,20 @@ export const OVERLAY_CARD_STYLE: CSSProperties = {
 // 행 안에서 엠블럼 크기도 두 컴포넌트가 동일하게 쓴다.
 export const TIER_EMBLEM_SIZE = 22;
 
+// MASTER 이상은 Riot API가 rank="I"를 내려줘도 실제 디비전이 없는 티어임.
+// 표시 시 rank를 붙이지 않는다.
+const NO_DIVISION_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
+export function hasDivision(tier: string): boolean {
+  return !NO_DIVISION_TIERS.has(tier.toUpperCase());
+}
+
 /**
  * 티어 이름 텍스트의 레이아웃(폭/폰트 크기/말줄임)을 두 컴포넌트가 공유한다.
- * 그라데이션 색만 tierGradientTextStyle로 따로 입힌다. 폭은 "PLATINUM III"
- * 처럼 가장 긴 티어+디비전 조합도 잘리지 않도록 여유 있게 잡았다.
+ * 그라데이션 색만 tierGradientTextStyle로 따로 입힌다. 폭은 "GRANDMASTER"(11자,
+ * 13px 800weight)까지 잘리지 않도록 여유 있게 잡았다.
  */
 export const TIER_LABEL_STYLE: CSSProperties = {
-  width: 104,
+  width: 120,
   flexShrink: 0,
   fontSize: 13,
   fontWeight: 800,

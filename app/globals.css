@@ -159,6 +159,16 @@ body::-webkit-scrollbar {
      1px  1px 0 rgba(0,0,0,0.7);
 }
 
+@keyframes odometer-out {
+  from { transform: translateY(0); opacity: 1; }
+  to   { transform: translateY(-1em); opacity: 0; }
+}
+
+@keyframes odometer-in {
+  from { transform: translateY(1em); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import OverlayCard from "./OverlayCard";
+import OdometerNumber from "./OdometerNumber";
 import {
   TIER_COLORS,
   TIER_IMG_MAP,
@@ -8,6 +9,7 @@ import {
   DIVISION_WEIGHT,
   DEFAULT_GAME_TYPE,
   gameLabel,
+  hasDivision,
   pickBestEntryForGame,
   tierGradientTextStyle,
   tierRowBackground,
@@ -70,7 +72,7 @@ export default function BadgeList({ viewers, gameType = DEFAULT_GAME_TYPE }: Bad
     <OverlayCard
       icon="🏆"
       title={`시청자 랭킹 (${gameLabel(gameType)})`}
-      badge={`총 ${ranked.length}명`}
+      badge={<>총 <OdometerNumber value={ranked.length} />명</>}
       emptyMessage={ranked.length === 0 ? "시청자 없음" : undefined}
     >
       <div className="flex flex-col gap-1">
@@ -110,7 +112,7 @@ export default function BadgeList({ viewers, gameType = DEFAULT_GAME_TYPE }: Bad
 
               <span style={{ ...TIER_LABEL_STYLE, ...tierGradientTextStyle(tier) }}>
                 {tier}
-                {best.rank ? ` ${best.rank}` : ""}
+                {hasDivision(tier) && best.rank ? ` ${best.rank}` : ""}
               </span>
 
               {typeof best.league_points === "number" && (

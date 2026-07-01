@@ -6,8 +6,8 @@ interface OverlayCardProps {
   icon: string;
   /** 헤더 좌측 타이틀. 예: "시청자 랭킹 (LoL)" */
   title: string;
-  /** 헤더 우측 배지 텍스트. 예: "총 17명" */
-  badge: string;
+  /** 헤더 우측 배지. 텍스트 또는 ReactNode (애니메이션 숫자 등) */
+  badge: ReactNode;
   /** 값이 있으면 children 대신 이 안내 문구를 렌더링한다(데이터 없음 상태). */
   emptyMessage?: string;
   children: ReactNode;

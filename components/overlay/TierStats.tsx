@@ -1,5 +1,6 @@
 import Image from "next/image";
 import OverlayCard from "./OverlayCard";
+import OdometerNumber from "./OdometerNumber";
 import {
   TIER_ORDER,
   TIER_COLORS,
@@ -28,14 +29,10 @@ interface Viewer {
 
 interface TierStatsProps {
   viewers: Viewer[];
-  /** 어떤 게임 데이터를 보여줄지 (URL의 ?game= 값). BadgeList와 동일하게
-   *  LoL/TFT를 섞지 않고 게임별로 분리해서 집계한다. */
   gameType?: GameType;
 }
 
 export default function TierStats({ viewers, gameType = DEFAULT_GAME_TYPE }: TierStatsProps) {
-  // 컴포넌트 레벨 방어: 입력 viewers 자체에 중복 시청자(같은 이름)가 있을 수
-  // 있으므로 일단 이름 기준으로 dedupe한 뒤 집계한다.
   const deduped = dedupeViewersByName(viewers);
 
   const counts: Record<string, number> = {};
@@ -54,7 +51,7 @@ export default function TierStats({ viewers, gameType = DEFAULT_GAME_TYPE }: Tie
     <OverlayCard
       icon="📊"
       title={`티어 분포 (${gameLabel(gameType)})`}
-      badge={`총 ${total}명`}
+      badge={<>총 <OdometerNumber value={total} />명</>}
       emptyMessage={tiers.length === 0 ? "데이터 없음" : undefined}
     >
       <div className="flex flex-col gap-1 w-full">
@@ -86,13 +83,16 @@ export default function TierStats({ viewers, gameType = DEFAULT_GAME_TYPE }: Tie
               </span>
 
               <div className="flex-1 flex items-center gap-2" style={{ minWidth: 0, justifyContent: "flex-end" }}>
+                <OdometerNumber
+                  value={count}
+                  style={{ width: 22, flexShrink: 0, fontSize: 13, fontWeight: 800, color, justifyContent: "flex-end" }}
+                />
+                {/* percentage: fade crossfade via key remount (subtle, lets count be the focus) */}
                 <span
-                  className="text-right"
-                  style={{ width: 22, flexShrink: 0, fontSize: 13, fontWeight: 800, color }}
+                  key={pct}
+                  className="text-xs w-9 text-right"
+                  style={{ color: "rgba(255,255,255,0.4)", animation: "odometer-in 250ms ease-out both" }}
                 >
-                  {count}
-                </span>
-                <span className="text-xs w-9 text-right" style={{ color: "rgba(255,255,255,0.4)" }}>
                   {pct}%
                 </span>
               </div>

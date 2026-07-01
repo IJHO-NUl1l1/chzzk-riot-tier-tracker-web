@@ -34,6 +34,8 @@ export default function OverlayPage() {
 
   const [viewers, setViewers] = useState<Viewer[]>([]);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const lastFetchMs = useRef(0);
+  const pendingFetch = useRef<{ names: string[]; timer: ReturnType<typeof setTimeout> } | null>(null);
 
   useEffect(() => {
     if (!liveId || mode === "chat") return;
@@ -62,6 +64,26 @@ export default function OverlayPage() {
       setViewers(viewers);
     }
 
+    const THROTTLE_MS = 2000;
+
+    function scheduleFetch(names: string[]) {
+      if (pendingFetch.current) clearTimeout(pendingFetch.current.timer);
+      const elapsed = Date.now() - lastFetchMs.current;
+      if (elapsed >= THROTTLE_MS) {
+        lastFetchMs.current = Date.now();
+        fetchViewers(names);
+      } else {
+        pendingFetch.current = {
+          names,
+          timer: setTimeout(() => {
+            lastFetchMs.current = Date.now();
+            pendingFetch.current = null;
+            fetchViewers(names);
+          }, THROTTLE_MS - elapsed),
+        };
+      }
+    }
+
     channel
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState<{ chzzkChannelName: string }>();
@@ -81,7 +103,7 @@ export default function OverlayPage() {
           }
         }
         console.log("[Overlay] unique names:", uniqueNames);
-        fetchViewers(uniqueNames);
+        scheduleFetch(uniqueNames);
       })
       .on("presence", { event: "join" }, ({ key, newPresences }) => {
         console.log("[Overlay] presence join:", key, newPresences);
@@ -201,6 +223,7 @@ export default function OverlayPage() {
       });
 
     return () => {
+      if (pendingFetch.current) clearTimeout(pendingFetch.current.timer);
       supabase.removeChannel(channel);
     };
   }, [liveId]);
