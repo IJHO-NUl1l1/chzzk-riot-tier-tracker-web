@@ -54,8 +54,16 @@ const toTierCase = (t: string) => t.charAt(0).toUpperCase() + t.slice(1).toLower
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
+// 오른쪽 데모 패널은 이 "디자인 캔버스" 크기 기준으로 요소를 배치하고,
+// 실제 패널 크기에 맞춰 전체를 균일 스케일한다. 픽셀 고정 배치는 화면
+// 크기에 따라 요소가 겹치거나(1366px에서 팝업이 채팅을 덮음) 구성 비율이
+// 달라지는 문제가 있어서, 어떤 모니터든 같은 구성이 보이도록 통일.
+const STAGE_W = 1300;
+const STAGE_H = 760;
+
 export default function DemoPage() {
   const [vh, setVh] = useState(800);
+  const [vw, setVw] = useState(1280);
   const [scrollY, setScrollY] = useState(0);
   // 휠 스크롤로 단계를 넘길 때만 부드럽게 트랜지션을 켠다(클릭/등록 후 자동
   // 이동도 동일). 휠을 계속 굴릴 때는 트랜지션 없이 즉각 반응해야 스크롤
@@ -130,7 +138,10 @@ export default function DemoPage() {
   // ── Viewport & scroll ────────────────────────────────────────────────────
 
   useEffect(() => {
-    const update = () => setVh(window.innerHeight);
+    const update = () => {
+      setVh(window.innerHeight);
+      setVw(window.innerWidth);
+    };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
@@ -327,6 +338,12 @@ export default function DemoPage() {
 
   const HEADER_H = 56;
 
+  // 데모 패널(뷰포트의 72% × 헤더 제외 높이)에 디자인 캔버스가 꼭 맞는
+  // 균일 스케일. 가로/세로 중 더 빡빡한 쪽에 맞춰서 잘림·겹침이 없다.
+  const panelW = vw * 0.72;
+  const panelH = vh - HEADER_H;
+  const stageScale = Math.min(panelW / STAGE_W, panelH / STAGE_H);
+
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: "#080810", color: "#e4e4e7", display: "flex", flexDirection: "column" }}>
       <SiteHeader />
@@ -461,100 +478,110 @@ export default function DemoPage() {
         </div>
       </div>
 
-      {/* ── Right: fixed demo panel (72%) ── */}
+      {/* ── Right: fixed demo panel (72%) — 디자인 캔버스를 균일 스케일 ── */}
       <div style={{
         position: "fixed", left: "28%", right: 0, top: HEADER_H,
         height: `calc(100vh - ${HEADER_H}px)`,
-        padding: "0 48px", overflow: "hidden",
+        overflow: "hidden",
       }}>
         <div style={{
           position: "absolute",
-          left: 220,
+          left: "50%",
           top: "50%",
-          transform: showChat
-            ? "translateY(-50%) translateX(-16px) scale(1.05)"
-            : "translateY(-50%) translateX(0) scale(1.15)",
-          transformOrigin: "center right",
-          opacity: showPopup ? 1 : 0,
-          pointerEvents: showPopup ? "auto" : "none",
-          transition: "transform 650ms cubic-bezier(0.16,1,0.3,1), opacity 450ms ease",
-          zIndex: 20,
+          width: STAGE_W,
+          height: STAGE_H,
+          transform: `translate(-50%,-50%) scale(${stageScale})`,
         }}>
-          {popup}
-        </div>
-
-        {/* OBS overlay: centered slot */}
-        <div style={{
-          position: "absolute",
-          left: "48%",
-          top: "50%",
-          transform: "translate(-50%,-50%)",
-          width: 620,
-          height: 480,
-          zIndex: 10,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          pointerEvents: showOverlay ? "auto" : "none",
-        }}>
+          {/* Extension popup slot */}
           <div style={{
-            width: "100%",
-            height: "100%",
+            position: "absolute",
+            left: 220,
+            top: "50%",
+            transform: showChat
+              ? "translateY(-50%) translateX(-16px) scale(1.05)"
+              : "translateY(-50%) translateX(0) scale(1.15)",
+            transformOrigin: "center right",
+            opacity: showPopup ? 1 : 0,
+            pointerEvents: showPopup ? "auto" : "none",
+            transition: "transform 650ms cubic-bezier(0.16,1,0.3,1), opacity 450ms ease",
+            zIndex: 20,
+          }}>
+            {popup}
+          </div>
+
+          {/* OBS overlay: centered slot */}
+          <div style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%,-50%)",
+            width: 620,
+            height: 480,
+            zIndex: 10,
             display: "flex",
-            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            opacity: showOverlay ? 1 : 0,
-            transform: showOverlay ? "translateX(0)" : "translateX(20px)",
-            transition: "opacity 550ms ease, transform 650ms cubic-bezier(0.16,1,0.3,1)",
             pointerEvents: showOverlay ? "auto" : "none",
           }}>
-            <p style={{
-              fontFamily: "Rajdhani, sans-serif", fontSize: 11, fontWeight: 600,
-              letterSpacing: "0.12em", textTransform: "uppercase",
-              color: "#52525b", marginBottom: 8, textAlign: "center",
+            <div style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: showOverlay ? 1 : 0,
+              transform: showOverlay ? "translateX(0)" : "translateX(20px)",
+              transition: "opacity 550ms ease, transform 650ms cubic-bezier(0.16,1,0.3,1)",
+              pointerEvents: showOverlay ? "auto" : "none",
             }}>
-              OBS 오버레이 미리보기
-            </p>
-            <div style={{ display: "flex", flexDirection: "row", gap: 30, transformOrigin: "top center" }}>
-              <BadgeList viewers={MOCK_OVERLAY_VIEWERS} gameType="lol" />
-              <TierStats viewers={MOCK_OVERLAY_VIEWERS} gameType="lol" />
+              <p style={{
+                fontFamily: "Rajdhani, sans-serif", fontSize: 11, fontWeight: 600,
+                letterSpacing: "0.12em", textTransform: "uppercase",
+                color: "#52525b", marginBottom: 8, textAlign: "center",
+              }}>
+                OBS 오버레이 미리보기
+              </p>
+              <div style={{ display: "flex", flexDirection: "row", gap: 30, transformOrigin: "top center" }}>
+                <BadgeList viewers={MOCK_OVERLAY_VIEWERS} gameType="lol" />
+                <TierStats viewers={MOCK_OVERLAY_VIEWERS} gameType="lol" />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Chat preview: separate slot (to the right of center) */}
-        <div style={{
-          position: "absolute",
-          left: "48%",
-          top: "25%",
-          width: 384,
-          height: 480,
-          zIndex: 9,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}>
+          {/* Chat preview: 팝업(우측 끝 ~561) 오른쪽에 겹치지 않게 배치 */}
           <div style={{
-            width: "100%",
-            maxWidth: 384,
+            position: "absolute",
+            left: 660,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 384,
+            zIndex: 9,
             display: "flex",
-            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            opacity: showChat ? 1 : 0,
-            transform: showChat ? "translateX(0)" : "translateX(20px)",
-            transition: "opacity 550ms ease, transform 650ms cubic-bezier(0.16,1,0.3,1)",
-            pointerEvents: showChat ? "auto" : "none",
           }}>
-            <p style={{
-              fontFamily: "Rajdhani, sans-serif", fontSize: 11, fontWeight: 600,
-              letterSpacing: "0.12em", textTransform: "uppercase",
-              color: "#52525b", marginBottom: 8, textAlign: "center",
+            <div style={{
+              width: "100%",
+              maxWidth: 384,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: showChat ? 1 : 0,
+              transform: showChat ? "translateX(0)" : "translateX(20px)",
+              transition: "opacity 550ms ease, transform 650ms cubic-bezier(0.16,1,0.3,1)",
+              pointerEvents: showChat ? "auto" : "none",
             }}>
-              치지직 채팅창 미리보기
-            </p>
-            <MockChat nick="Faker" nickColor="#a78bfa" tiers={chatTiers} highlightInput={showChat} />
+              <p style={{
+                fontFamily: "Rajdhani, sans-serif", fontSize: 11, fontWeight: 600,
+                letterSpacing: "0.12em", textTransform: "uppercase",
+                color: "#52525b", marginBottom: 8, textAlign: "center",
+              }}>
+                치지직 채팅창 미리보기
+              </p>
+              <MockChat nick="Faker" nickColor="#a78bfa" tiers={chatTiers} highlightInput={showChat} />
+            </div>
           </div>
         </div>
       </div>
