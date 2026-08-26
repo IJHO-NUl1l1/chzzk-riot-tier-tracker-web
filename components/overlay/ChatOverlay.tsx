@@ -157,26 +157,11 @@ function TierBadge({ tier }: { tier: string }) {
   );
 }
 
-function NicknameSpan({ color, children }: { color: NicknameColor; children: React.ReactNode }) {
-  if (color.gradient) {
-    return (
-      <span
-        style={{
-          fontWeight: 500,
-          marginRight: 2,
-          background: `linear-gradient(to right, ${color.gradient.start}, ${color.gradient.end})`,
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
-          filter: "saturate(1.5) brightness(1.0)",
-        }}
-      >
-        {children}
-      </span>
-    );
-  }
+// 오버레이에서는 치지직 닉네임 색(구독/그라데이션 등)을 쓰지 않고 흰색으로
+// 통일한다 — 방송 화면 위에서는 채도 높은 색보다 흰색이 더 잘 읽힌다.
+function NicknameSpan({ children }: { children: React.ReactNode }) {
   return (
-    <span style={{ fontWeight: 500, color: color.solid ?? "#FFFFFF", marginRight: 2, filter: "saturate(1.5) brightness(1.0)" }}>
+    <span style={{ fontWeight: 500, color: "#FFFFFF", marginRight: 2 }}>
       {children}
     </span>
   );
@@ -534,32 +519,34 @@ export default function ChatOverlay({ channelId, maxLines = 20, ttl = 60, tierOn
               transition: m.fading ? "opacity 0.7s ease" : undefined,
             }}
           >
-            {/* 티어 뱃지 — 맨 앞 */}
-            {m.tierEntries.map((e) => (
-              <TierBadge key={e.game_type} tier={e.tier} />
-            ))}
-            {/* 역할 뱃지 */}
-            {m.roleBadgeUrl && (
-              <img src={m.roleBadgeUrl} alt="" width={16} height={16}
-                style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
-            )}
-            {/* 구독 뱃지 */}
-            {m.subBadgeUrl && (
-              <img src={m.subBadgeUrl} alt="" width={16} height={16}
-                style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
-            )}
-            {/* 뷰어 뱃지 */}
-            {m.viewerBadges.map((b, i) => (
-              <img key={i} src={b.imageUrl} alt="" width={16} height={16}
-                style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
-            ))}
-            {/* 닉네임 */}
-            <NicknameSpan color={m.nicknameColor}>{m.nickname}</NicknameSpan>
-            <span style={{ color: "rgba(255,255,255,0.4)", marginRight: 4 }}>:</span>
-            {/* 메시지 */}
-            <span style={{ color: "#ffffff" }}>
+            {/* 1행: 뱃지 + 닉네임 */}
+            <div>
+              {/* 티어 뱃지 — 맨 앞 */}
+              {m.tierEntries.map((e) => (
+                <TierBadge key={e.game_type} tier={e.tier} />
+              ))}
+              {/* 역할 뱃지 */}
+              {m.roleBadgeUrl && (
+                <img src={m.roleBadgeUrl} alt="" width={16} height={16}
+                  style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
+              )}
+              {/* 구독 뱃지 */}
+              {m.subBadgeUrl && (
+                <img src={m.subBadgeUrl} alt="" width={16} height={16}
+                  style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
+              )}
+              {/* 뷰어 뱃지 */}
+              {m.viewerBadges.map((b, i) => (
+                <img key={i} src={b.imageUrl} alt="" width={16} height={16}
+                  style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
+              ))}
+              {/* 닉네임 */}
+              <NicknameSpan>{m.nickname}</NicknameSpan>
+            </div>
+            {/* 2행: 메시지 본문 — 내용이 짧아도 항상 별도 줄을 차지한다 */}
+            <div style={{ color: "#ffffff", minHeight: "1.5em" }}>
               <MessageContent msg={m.msg} emojis={m.emojis} />
-            </span>
+            </div>
           </div>
         ))}
         <div style={{ flexShrink: 0, height: 4 }} />
